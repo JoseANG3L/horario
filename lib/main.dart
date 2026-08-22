@@ -8,6 +8,14 @@ import 'package:timezone/data/latest.dart' as tz_data;
 
 import 'dart:convert';
 
+extension _ColorUtils on Color {
+  int toARGB32() => value;
+
+  /// Helper compatible con el código original: devuelve el color
+  /// con la opacidad indicada (0.0 - 1.0).
+  Color withValues({double alpha = 1.0}) => withOpacity(alpha);
+}
+
 final FlutterLocalNotificationsPlugin _notificationsPlugin =
     FlutterLocalNotificationsPlugin();
 
@@ -73,13 +81,22 @@ class _MainAppState extends State<MainApp> {
   Color _menuBackgroundColor = const Color(0xFF18232D);
   ThemeMode _themeMode = ThemeMode.dark;
   Color _screenBackgroundColor = const Color(0xFF0F1720);
+  Color _lightScreenBackgroundColor = _lightBackgroundOptions.first;
+  Color _darkScreenBackgroundColor = _darkBackgroundOptions.first;
 
   static const _darkBackgroundOptions = [
     Color(0xFF0F1720),
+    Color(0xFF0B1220),
+    Color(0xFF0E1622),
     Color(0xFF111827),
+    Color(0xFF141A24),
     Color(0xFF17212B),
     Color(0xFF1B1B2F),
     Color(0xFF202A36),
+    Color(0xFF27323B),
+    Color(0xFF24313A),
+    Color(0xFF102027),
+    Color(0xFF082026),
   ];
   static const _lightBackgroundOptions = [
     Color(0xFFF4F7F6),
@@ -87,6 +104,13 @@ class _MainAppState extends State<MainApp> {
     Color(0xFFFFF8EE),
     Color(0xFFF8F3FA),
     Color(0xFFEFF8F7),
+    Color(0xFFFFFFFF),
+    Color(0xFFFCFCFD),
+    Color(0xFFF7FAFC),
+    Color(0xFFF3F6F5),
+    Color(0xFFF9F7EE),
+    Color(0xFFFEFBF3),
+    Color(0xFFF2F5F8),
   ];
 
   @override
@@ -120,20 +144,68 @@ class _MainAppState extends State<MainApp> {
         _themeMode = prefs.getString('theme_mode') == 'light'
             ? ThemeMode.light
             : ThemeMode.dark;
-        final screenBackgroundColorValue = prefs.getInt(
+        final legacyScreenBackgroundColor = prefs.getInt(
           'screen_background_color',
         );
-        _screenBackgroundColor = screenBackgroundColorValue != null
-            ? Color(screenBackgroundColorValue)
-            : _defaultBackgroundForMode(_themeMode);
+        final lightScreenBackgroundColorValue = prefs.getInt(
+          'light_screen_background_color',
+        );
+        final darkScreenBackgroundColorValue = prefs.getInt(
+          'dark_screen_background_color',
+        );
+        _lightScreenBackgroundColor = lightScreenBackgroundColorValue != null
+            ? Color(lightScreenBackgroundColorValue)
+            : _lightBackgroundOptions.first;
+        _darkScreenBackgroundColor = darkScreenBackgroundColorValue != null
+            ? Color(darkScreenBackgroundColorValue)
+            : legacyScreenBackgroundColor != null &&
+                  _themeMode == ThemeMode.dark
+            ? Color(legacyScreenBackgroundColor)
+            : _darkBackgroundOptions.first;
+        _screenBackgroundColor = _themeMode == ThemeMode.light
+            ? _lightScreenBackgroundColor
+            : _darkScreenBackgroundColor;
+        final menuBrightness = _themeMode == ThemeMode.light
+            ? Brightness.light
+            : Brightness.dark;
+        _menuBackgroundColor = _menuBackgroundForPrimary(
+          _primaryColor,
+          menuBrightness,
+        );
+        _menuTextColor = _defaultTextColor(_menuBackgroundColor);
       });
     }
   }
 
   Future<void> _setPrimaryColor(Color color) async {
-    setState(() => _primaryColor = color);
+    final brightness = _themeMode == ThemeMode.light
+        ? Brightness.light
+        : Brightness.dark;
+    final pageBackground = _pageBackgroundForPrimary(color, brightness);
+    final menuBackground = _menuBackgroundForPrimary(color, brightness);
+    final menuText = _defaultTextColor(menuBackground);
+    setState(() {
+      _primaryColor = color;
+      _screenBackgroundColor = pageBackground;
+      _menuBackgroundColor = menuBackground;
+      _menuTextColor = menuText;
+      if (_themeMode == ThemeMode.light) {
+        _lightScreenBackgroundColor = pageBackground;
+      } else {
+        _darkScreenBackgroundColor = pageBackground;
+      }
+    });
     final prefs = await SharedPreferences.getInstance();
     await prefs.setInt('primary_color', color.toARGB32());
+    await prefs.setInt('screen_background_color', pageBackground.toARGB32());
+    await prefs.setInt(
+      _themeMode == ThemeMode.light
+          ? 'light_screen_background_color'
+          : 'dark_screen_background_color',
+      pageBackground.toARGB32(),
+    );
+    await prefs.setInt('menu_background_color', menuBackground.toARGB32());
+    await prefs.setInt('menu_text_color', menuText.toARGB32());
   }
 
   Future<void> _setMenuTextColor(Color color) async {
@@ -148,14 +220,23 @@ class _MainAppState extends State<MainApp> {
     await prefs.setInt('menu_background_color', color.toARGB32());
   }
 
-  Color _defaultBackgroundForMode(ThemeMode mode) => mode == ThemeMode.light
-      ? _lightBackgroundOptions.first
-      : _darkBackgroundOptions.first;
-
   Future<void> _setThemeMode(ThemeMode mode) async {
+    final brightness = mode == ThemeMode.light
+        ? Brightness.light
+        : Brightness.dark;
+    final pageBackground = _pageBackgroundForPrimary(_primaryColor, brightness);
+    final menuBackground = _menuBackgroundForPrimary(_primaryColor, brightness);
+    final menuText = _defaultTextColor(menuBackground);
     setState(() {
       _themeMode = mode;
-      _screenBackgroundColor = _defaultBackgroundForMode(mode);
+      _screenBackgroundColor = pageBackground;
+      _menuBackgroundColor = menuBackground;
+      _menuTextColor = menuText;
+      if (mode == ThemeMode.light) {
+        _lightScreenBackgroundColor = pageBackground;
+      } else {
+        _darkScreenBackgroundColor = pageBackground;
+      }
     });
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(
@@ -166,12 +247,33 @@ class _MainAppState extends State<MainApp> {
       'screen_background_color',
       _screenBackgroundColor.toARGB32(),
     );
+    await prefs.setInt(
+      mode == ThemeMode.light
+          ? 'light_screen_background_color'
+          : 'dark_screen_background_color',
+      _screenBackgroundColor.toARGB32(),
+    );
+    await prefs.setInt('menu_background_color', menuBackground.toARGB32());
+    await prefs.setInt('menu_text_color', menuText.toARGB32());
   }
 
   Future<void> _setScreenBackgroundColor(Color color) async {
-    setState(() => _screenBackgroundColor = color);
+    setState(() {
+      _screenBackgroundColor = color;
+      if (_themeMode == ThemeMode.light) {
+        _lightScreenBackgroundColor = color;
+      } else {
+        _darkScreenBackgroundColor = color;
+      }
+    });
     final prefs = await SharedPreferences.getInstance();
     await prefs.setInt('screen_background_color', color.toARGB32());
+    await prefs.setInt(
+      _themeMode == ThemeMode.light
+          ? 'light_screen_background_color'
+          : 'dark_screen_background_color',
+      color.toARGB32(),
+    );
   }
 
   Future<void> _saveProfile({
@@ -230,6 +332,7 @@ class _MainAppState extends State<MainApp> {
       ),
       home: HorarioScreen(
         colorOptions: _colorOptions,
+        primaryColor: _primaryColor,
         onPrimaryColorChanged: _setPrimaryColor,
         profileName: _profileName,
         profileDetail: _profileDetail,
@@ -263,6 +366,7 @@ class Clase {
   final String horaFin;
   final String letraInicial;
   final Color color;
+  final Color? cardColor;
 
   const Clase({
     required this.materia,
@@ -274,6 +378,7 @@ class Clase {
     required this.horaFin,
     required this.letraInicial,
     required this.color,
+    this.cardColor,
   });
 
   Map<String, dynamic> toJson() {
@@ -287,6 +392,7 @@ class Clase {
       'horaFin': horaFin,
       'letraInicial': letraInicial,
       'color': color.toARGB32(),
+      if (cardColor != null) 'cardColor': cardColor!.toARGB32(),
     };
   }
 
@@ -301,6 +407,9 @@ class Clase {
       horaFin: json['horaFin'],
       letraInicial: json['letraInicial'],
       color: Color(json['color']),
+      cardColor: json.containsKey('cardColor')
+          ? Color(json['cardColor'])
+          : null,
     );
   }
 }
@@ -321,6 +430,9 @@ class MateriaGuardada {
   final String edificio;
   final String aula;
   final Color color;
+  final Color iconColor;
+  final Color textColor;
+  final Color cardColor;
 
   const MateriaGuardada({
     required this.materia,
@@ -329,6 +441,9 @@ class MateriaGuardada {
     required this.edificio,
     required this.aula,
     required this.color,
+    required this.iconColor,
+    required this.textColor,
+    required this.cardColor,
   });
 
   Map<String, dynamic> toJson() {
@@ -339,6 +454,9 @@ class MateriaGuardada {
       'edificio': edificio,
       'aula': aula,
       'color': color.toARGB32(),
+      'iconColor': iconColor.toARGB32(),
+      'textColor': textColor.toARGB32(),
+      'cardColor': cardColor.toARGB32(),
     };
   }
 
@@ -350,12 +468,64 @@ class MateriaGuardada {
       edificio: json['edificio'],
       aula: json['aula'],
       color: Color(json['color']),
+      iconColor: json.containsKey('iconColor')
+          ? Color(json['iconColor'])
+          : _defaultIconColor(Color(json['color'])),
+      textColor: json.containsKey('textColor')
+          ? Color(json['textColor'])
+          : _defaultTextColor(Color(json['color'])),
+      cardColor: json.containsKey('cardColor')
+          ? Color(json['cardColor'])
+          : _defaultCardColor(Color(json['color'])),
     );
   }
 }
 
+Color _cardColorForTheme(Color color, Brightness brightness) {
+  final hsl = HSLColor.fromColor(color);
+  return hsl
+      .withLightness(brightness == Brightness.light ? 0.86 : 0.15)
+      .withSaturation(brightness == Brightness.light ? 0.48 : 0.30)
+      .toColor();
+}
+
+Color _materiaColorForTheme(Color color, Brightness brightness) {
+  final hsl = HSLColor.fromColor(color);
+  return hsl
+      .withLightness(brightness == Brightness.light ? 0.48 : 0.68)
+      .withSaturation(brightness == Brightness.light ? 0.68 : 0.48)
+      .toColor();
+}
+
+Color _defaultCardColor(Color background) => _cardColorForTheme(
+  background,
+  background.computeLuminance() > 0.5 ? Brightness.light : Brightness.dark,
+);
+
+Color _defaultIconColor(Color background) =>
+    background.computeLuminance() > 0.5 ? Colors.black : Colors.white;
+Color _defaultTextColor(Color background) =>
+    background.computeLuminance() > 0.5 ? Colors.black : Colors.white;
+
+Color _pageBackgroundForPrimary(Color color, Brightness brightness) {
+  final hsl = HSLColor.fromColor(color);
+  return hsl
+      .withLightness(brightness == Brightness.light ? 0.97 : 0.10)
+      .withSaturation(brightness == Brightness.light ? 0.12 : 0.22)
+      .toColor();
+}
+
+Color _menuBackgroundForPrimary(Color color, Brightness brightness) {
+  final hsl = HSLColor.fromColor(color);
+  return hsl
+      .withLightness(brightness == Brightness.light ? 0.88 : 0.13)
+      .withSaturation(brightness == Brightness.light ? 0.16 : 0.28)
+      .toColor();
+}
+
 class HorarioScreen extends StatefulWidget {
   final List<Color> colorOptions;
+  final Color primaryColor;
   final Future<void> Function(Color color) onPrimaryColorChanged;
   final String profileName;
   final String profileDetail;
@@ -384,6 +554,7 @@ class HorarioScreen extends StatefulWidget {
   const HorarioScreen({
     super.key,
     required this.colorOptions,
+    required this.primaryColor,
     required this.onPrimaryColorChanged,
     required this.profileName,
     required this.profileDetail,
@@ -567,6 +738,7 @@ class _HorarioScreenState extends State<HorarioScreen>
                     horaInicio: _classesByDay[day][i].horaInicio,
                     horaFin: _classesByDay[day][i].horaFin,
                     color: updatedMateria.color,
+                    cardColor: updatedMateria.cardColor,
                     letraInicial: updatedMateria.materia
                         .substring(0, 1)
                         .toUpperCase(),
@@ -699,7 +871,8 @@ class _HorarioScreenState extends State<HorarioScreen>
     return Scaffold(
       appBar: AppBar(
         title: const Text('Horario'),
-        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+        backgroundColor: widget.screenBackgroundColor,
+        surfaceTintColor: Colors.transparent,
         elevation: 0,
       ),
       drawer: Drawer(
@@ -754,20 +927,32 @@ class _HorarioScreenState extends State<HorarioScreen>
               ),
             ),
             ListTile(
-              leading: const Icon(Icons.calendar_today_rounded),
-              title: const Text('Horario'),
+              leading: Icon(
+                Icons.calendar_today_rounded,
+                color: widget.menuTextColor,
+              ),
+              title: Text(
+                'Horario',
+                style: TextStyle(color: widget.menuTextColor),
+              ),
               selected: _selectedTab == 0,
-              selectedTileColor: Colors.white.withValues(alpha: 0.05),
+              selectedTileColor: widget.menuTextColor.withValues(alpha: 0.05),
               onTap: () {
                 setState(() => _selectedTab = 0);
                 Navigator.pop(context);
               },
             ),
             ListTile(
-              leading: const Icon(Icons.bookmark_rounded),
-              title: const Text('Materias Guardadas'),
+              leading: Icon(
+                Icons.bookmark_rounded,
+                color: widget.menuTextColor,
+              ),
+              title: Text(
+                'Materias Guardadas',
+                style: TextStyle(color: widget.menuTextColor),
+              ),
               selected: _selectedTab == 1,
-              selectedTileColor: Colors.white.withValues(alpha: 0.05),
+              selectedTileColor: widget.menuTextColor.withValues(alpha: 0.05),
               onTap: () {
                 setState(() => _selectedTab = 1);
                 Navigator.pop(context);
@@ -775,11 +960,22 @@ class _HorarioScreenState extends State<HorarioScreen>
             ),
             const Divider(),
             ListTile(
-              leading: const Icon(Icons.palette_outlined),
-              title: const Text('Apariencia'),
-              subtitle: const Text('Personalizar color principal'),
+              leading: Icon(
+                Icons.palette_outlined,
+                color: widget.menuTextColor,
+              ),
+              title: Text(
+                'Apariencia',
+                style: TextStyle(color: widget.menuTextColor),
+              ),
+              subtitle: Text(
+                'Personalizar color principal',
+                style: TextStyle(
+                  color: widget.menuTextColor.withValues(alpha: 0.7),
+                ),
+              ),
               selected: _selectedTab == 2,
-              selectedTileColor: Colors.white.withValues(alpha: 0.05),
+              selectedTileColor: widget.menuTextColor.withValues(alpha: 0.05),
               onTap: () {
                 setState(() => _selectedTab = 2);
                 Navigator.pop(context);
@@ -787,9 +983,20 @@ class _HorarioScreenState extends State<HorarioScreen>
             ),
             const Divider(),
             SwitchListTile(
-              secondary: const Icon(Icons.notifications_rounded),
-              title: const Text('Notificaciones'),
-              subtitle: const Text('Recordatorio de próxima clase'),
+              secondary: Icon(
+                Icons.notifications_rounded,
+                color: widget.menuTextColor,
+              ),
+              title: Text(
+                'Notificaciones',
+                style: TextStyle(color: widget.menuTextColor),
+              ),
+              subtitle: Text(
+                'Recordatorio de próxima clase',
+                style: TextStyle(
+                  color: widget.menuTextColor.withValues(alpha: 0.7),
+                ),
+              ),
               value: _notificationsEnabled,
               onChanged: (value) {
                 _toggleNotifications(value);
@@ -822,6 +1029,7 @@ class _HorarioScreenState extends State<HorarioScreen>
               )
             : _AppearanceSection(
                 colorOptions: widget.colorOptions,
+                primaryColor: widget.primaryColor,
                 onColorChanged: widget.onPrimaryColorChanged,
                 profileName: widget.profileName,
                 profileDetail: widget.profileDetail,
@@ -884,6 +1092,7 @@ class _HorarioScreenState extends State<HorarioScreen>
 
 class _AppearanceSection extends StatefulWidget {
   final List<Color> colorOptions;
+  final Color primaryColor;
   final Future<void> Function(Color color) onColorChanged;
   final String profileName;
   final String profileDetail;
@@ -911,6 +1120,7 @@ class _AppearanceSection extends StatefulWidget {
 
   const _AppearanceSection({
     required this.colorOptions,
+    required this.primaryColor,
     required this.onColorChanged,
     required this.profileName,
     required this.profileDetail,
@@ -939,28 +1149,7 @@ class _AppearanceSectionState extends State<_AppearanceSection> {
   late final TextEditingController _imageController;
   late bool _useImage;
   Uint8List? _imageBytes;
-  late Color _menuTextColor;
-  late Color _menuBackgroundColor;
   late ThemeMode _themeMode;
-  late Color _screenBackgroundColor;
-  static const _menuTextColors = [
-    Colors.white,
-    Color(0xFFF5F5F5),
-    Color(0xFF121820),
-    Color(0xFFFFF3CD),
-    Color(0xFFE0F7FA),
-    Color(0xFFFFE4EC),
-  ];
-  static const _menuBackgroundColors = [
-    Color(0xFF18232D),
-    Color(0xFF202A36),
-    Color(0xFF263238),
-    Color(0xFF26324A),
-    Color(0xFF30243D),
-    Color(0xFF3A2924),
-    Color(0xFF20352F),
-    Color(0xFF111827),
-  ];
 
   @override
   void initState() {
@@ -970,10 +1159,7 @@ class _AppearanceSectionState extends State<_AppearanceSection> {
     _imageController = TextEditingController(text: widget.headerImageUrl);
     _useImage = widget.useHeaderImage;
     _imageBytes = widget.headerImageBytes;
-    _menuTextColor = widget.menuTextColor;
-    _menuBackgroundColor = widget.menuBackgroundColor;
     _themeMode = widget.themeMode;
-    _screenBackgroundColor = widget.screenBackgroundColor;
   }
 
   @override
@@ -985,13 +1171,20 @@ class _AppearanceSectionState extends State<_AppearanceSection> {
   }
 
   Future<void> _saveProfile() async {
+    final brightness = _themeMode == ThemeMode.light
+        ? Brightness.light
+        : Brightness.dark;
+    final menuBackground = _menuBackgroundForPrimary(
+      widget.primaryColor,
+      brightness,
+    );
     await widget.onProfileChanged(
       name: _nameController.text,
       detail: _detailController.text,
       imageUrl: _imageController.text,
       useImage: _useImage,
       imageBytes: _imageBytes,
-      menuTextColor: _menuTextColor,
+      menuTextColor: _defaultTextColor(menuBackground),
     );
     if (mounted) {
       ScaffoldMessenger.of(
@@ -1016,14 +1209,31 @@ class _AppearanceSectionState extends State<_AppearanceSection> {
   }
 
   InputDecoration _fieldDecoration(String label, IconData icon) {
+    final borderColor = Theme.of(context).brightness == Brightness.light
+        ? Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.12)
+        : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.12);
+    final fill = Theme.of(context).brightness == Brightness.light
+        ? Colors.white.withValues(alpha: 0.05)
+        : Colors.white.withValues(alpha: 0.02);
     return InputDecoration(
       labelText: label,
       prefixIcon: Icon(icon),
       filled: true,
-      fillColor: Colors.white.withValues(alpha: 0.05),
+      fillColor: fill,
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),
-        borderSide: BorderSide.none,
+        borderSide: BorderSide(color: borderColor, width: 1),
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: BorderSide(color: borderColor, width: 1),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: BorderSide(
+          color: Theme.of(context).colorScheme.primary,
+          width: 2,
+        ),
       ),
     );
   }
@@ -1031,6 +1241,14 @@ class _AppearanceSectionState extends State<_AppearanceSection> {
   @override
   Widget build(BuildContext context) {
     final primaryColor = Theme.of(context).colorScheme.primary;
+    final selectedPrimaryColor = widget.primaryColor;
+    final primaryColorOptions = [
+      ...widget.colorOptions,
+      if (!widget.colorOptions.any(
+        (color) => color.toARGB32() == selectedPrimaryColor.toARGB32(),
+      ))
+        selectedPrimaryColor,
+    ];
 
     return ListView(
       padding: const EdgeInsets.fromLTRB(20, 24, 20, 32),
@@ -1085,54 +1303,10 @@ class _AppearanceSectionState extends State<_AppearanceSection> {
                     final mode = selection.first;
                     setState(() {
                       _themeMode = mode;
-                      _screenBackgroundColor = mode == ThemeMode.light
-                          ? const Color(0xFFF4F7F6)
-                          : const Color(0xFF0F1720);
                     });
                     await widget.onThemeModeChanged(mode);
                   },
                 ),
-              ),
-              const SizedBox(height: 18),
-              const Text(
-                'Color de fondo de las pantallas',
-                style: TextStyle(fontWeight: FontWeight.w700),
-              ),
-              const SizedBox(height: 10),
-              Wrap(
-                spacing: 14,
-                runSpacing: 14,
-                children: widget.backgroundOptions.map((color) {
-                  final isSelected =
-                      _screenBackgroundColor.toARGB32() == color.toARGB32();
-                  return InkWell(
-                    onTap: () async {
-                      setState(() => _screenBackgroundColor = color);
-                      await widget.onScreenBackgroundColorChanged(color);
-                    },
-                    borderRadius: BorderRadius.circular(24),
-                    child: Container(
-                      width: 44,
-                      height: 44,
-                      decoration: BoxDecoration(
-                        color: color,
-                        shape: BoxShape.circle,
-                        border: Border.all(
-                          color: isSelected
-                              ? Theme.of(context).colorScheme.primary
-                              : Colors.white24,
-                          width: isSelected ? 3 : 1,
-                        ),
-                      ),
-                      child: isSelected
-                          ? Icon(
-                              Icons.check_rounded,
-                              color: Theme.of(context).colorScheme.primary,
-                            )
-                          : null,
-                    ),
-                  );
-                }).toList(),
               ),
             ],
           ),
@@ -1247,9 +1421,12 @@ class _AppearanceSectionState extends State<_AppearanceSection> {
               Wrap(
                 spacing: 14,
                 runSpacing: 14,
-                children: widget.colorOptions.map((color) {
+                children: primaryColorOptions.map((color) {
                   final isSelected =
-                      primaryColor.toARGB32() == color.toARGB32();
+                      selectedPrimaryColor.toARGB32() == color.toARGB32();
+                  final defaultBorderColor = widget.themeMode == ThemeMode.light
+                      ? Colors.black38
+                      : Colors.white24;
                   return Semantics(
                     label: 'Seleccionar color principal',
                     selected: isSelected,
@@ -1265,9 +1442,9 @@ class _AppearanceSectionState extends State<_AppearanceSection> {
                           shape: BoxShape.circle,
                           border: Border.all(
                             color: isSelected
-                                ? Colors.white
-                                : Colors.transparent,
-                            width: 3,
+                                ? Theme.of(context).colorScheme.onSurface
+                                : defaultBorderColor,
+                            width: isSelected ? 2.5 : 1,
                           ),
                           boxShadow: isSelected
                               ? [
@@ -1279,84 +1456,21 @@ class _AppearanceSectionState extends State<_AppearanceSection> {
                               : null,
                         ),
                         child: isSelected
-                            ? const Icon(
-                                Icons.check_rounded,
-                                color: Color(0xFF09201D),
+                            ? Container(
+                                width: 25,
+                                height: 25,
+                                decoration: BoxDecoration(
+                                  color: _defaultTextColor(color),
+                                  shape: BoxShape.circle,
+                                ),
+                                child: Icon(
+                                  Icons.check_rounded,
+                                  size: 18,
+                                  color: color,
+                                ),
                               )
                             : null,
                       ),
-                    ),
-                  );
-                }).toList(),
-              ),
-              const SizedBox(height: 24),
-              const Text(
-                'Color del menú lateral',
-                style: TextStyle(fontWeight: FontWeight.w700),
-              ),
-              const SizedBox(height: 10),
-              Wrap(
-                spacing: 14,
-                runSpacing: 14,
-                children: _menuBackgroundColors.map((color) {
-                  final isSelected =
-                      _menuBackgroundColor.toARGB32() == color.toARGB32();
-                  return InkWell(
-                    onTap: () async {
-                      setState(() => _menuBackgroundColor = color);
-                      await widget.onMenuBackgroundColorChanged(color);
-                    },
-                    borderRadius: BorderRadius.circular(24),
-                    child: Container(
-                      width: 44,
-                      height: 44,
-                      decoration: BoxDecoration(
-                        color: color,
-                        shape: BoxShape.circle,
-                        border: Border.all(
-                          color: isSelected ? primaryColor : Colors.white24,
-                          width: isSelected ? 3 : 1,
-                        ),
-                      ),
-                      child: isSelected
-                          ? Icon(Icons.check_rounded, color: primaryColor)
-                          : null,
-                    ),
-                  );
-                }).toList(),
-              ),
-              const SizedBox(height: 24),
-              const Text(
-                'Color de letras del menú',
-                style: TextStyle(fontWeight: FontWeight.w700),
-              ),
-              const SizedBox(height: 10),
-              Wrap(
-                spacing: 14,
-                runSpacing: 14,
-                children: _menuTextColors.map((color) {
-                  final isSelected =
-                      _menuTextColor.toARGB32() == color.toARGB32();
-                  return InkWell(
-                    onTap: () async {
-                      setState(() => _menuTextColor = color);
-                      await widget.onMenuTextColorChanged(color);
-                    },
-                    borderRadius: BorderRadius.circular(24),
-                    child: Container(
-                      width: 44,
-                      height: 44,
-                      decoration: BoxDecoration(
-                        color: color,
-                        shape: BoxShape.circle,
-                        border: Border.all(
-                          color: isSelected ? primaryColor : Colors.white24,
-                          width: isSelected ? 3 : 1,
-                        ),
-                      ),
-                      child: isSelected
-                          ? Icon(Icons.check_rounded, color: primaryColor)
-                          : null,
                     ),
                   );
                 }).toList(),
@@ -1698,28 +1812,40 @@ class _AddClassSheetState extends State<_AddClassSheet> {
         horaFin: _endController.text.trim(),
         letraInicial: subject.substring(0, 1).toUpperCase(),
         color: color,
+        cardColor:
+            _selectedMateria?.cardColor ??
+            Theme.of(context).colorScheme.surface,
       ),
     );
     Navigator.pop(context);
   }
 
   InputDecoration _fieldDecoration(String label, IconData icon) {
+    final borderColor = Theme.of(context).brightness == Brightness.light
+        ? Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.12)
+        : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.12);
+    final fill = Theme.of(context).brightness == Brightness.light
+        ? Colors.white.withValues(alpha: 0.06)
+        : Colors.white.withValues(alpha: 0.02);
     return InputDecoration(
       labelText: label,
       prefixIcon: Icon(icon, size: 20),
       filled: true,
-      fillColor: Colors.white.withValues(alpha: 0.06),
+      fillColor: fill,
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(14),
-        borderSide: BorderSide.none,
+        borderSide: BorderSide(color: borderColor, width: 1),
       ),
       enabledBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(14),
-        borderSide: BorderSide.none,
+        borderSide: BorderSide(color: borderColor, width: 1),
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(14),
-        borderSide: const BorderSide(color: Color(0xFF53D1B6), width: 2),
+        borderSide: BorderSide(
+          color: Theme.of(context).colorScheme.primary,
+          width: 2,
+        ),
       ),
       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
       labelStyle: const TextStyle(fontSize: 13),
@@ -1767,10 +1893,11 @@ class _AddClassSheetState extends State<_AddClassSheet> {
                   Container(
                     padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.03),
+                      color: Theme.of(context).colorScheme.surface,
                       borderRadius: BorderRadius.circular(16),
                       border: Border.all(
-                        color: Colors.white.withValues(alpha: 0.08),
+                        color: Theme.of(context).colorScheme.onSurface
+                            .withValues(alpha: 0.12),
                       ),
                     ),
                     child: Column(
@@ -1798,6 +1925,15 @@ class _AddClassSheetState extends State<_AddClassSheet> {
                         Column(
                           children: widget.materiasGuardadas.map((materia) {
                             final isSelected = _selectedMateria == materia;
+                            final brightness = Theme.of(context).brightness;
+                            final accentColor = _materiaColorForTheme(
+                              materia.color,
+                              brightness,
+                            );
+                            final itemColor = isSelected
+                                ? _cardColorForTheme(materia.color, brightness)
+                                : Theme.of(context).colorScheme.surface;
+                            final itemTextColor = _defaultTextColor(itemColor);
                             return Padding(
                               padding: const EdgeInsets.only(bottom: 8),
                               child: Material(
@@ -1808,20 +1944,15 @@ class _AddClassSheetState extends State<_AddClassSheet> {
                                   child: Container(
                                     height: 58,
                                     decoration: BoxDecoration(
-                                      color: isSelected
-                                          ? materia.color.withValues(
-                                              alpha: 0.16,
-                                            )
-                                          : Colors.white.withValues(
-                                              alpha: 0.04,
-                                            ),
+                                      color: itemColor,
                                       borderRadius: BorderRadius.circular(12),
                                       border: Border.all(
                                         color: isSelected
-                                            ? materia.color
-                                            : Colors.white.withValues(
-                                                alpha: 0.07,
-                                              ),
+                                            ? accentColor
+                                            : Theme.of(context)
+                                                  .colorScheme
+                                                  .onSurface
+                                                  .withValues(alpha: 0.12),
                                         width: isSelected ? 1.5 : 1,
                                       ),
                                     ),
@@ -1841,13 +1972,15 @@ class _AddClassSheetState extends State<_AddClassSheet> {
                                         const SizedBox(width: 12),
                                         CircleAvatar(
                                           radius: 17,
-                                          backgroundColor: materia.color,
+                                          backgroundColor: accentColor,
                                           child: Text(
                                             materia.materia
                                                 .substring(0, 1)
                                                 .toUpperCase(),
-                                            style: const TextStyle(
-                                              color: Color(0xFF09201D),
+                                            style: TextStyle(
+                                              color: _defaultTextColor(
+                                                accentColor,
+                                              ),
                                               fontWeight: FontWeight.w800,
                                             ),
                                           ),
@@ -1866,11 +1999,7 @@ class _AddClassSheetState extends State<_AddClassSheet> {
                                                 overflow: TextOverflow.ellipsis,
                                                 style: TextStyle(
                                                   fontWeight: FontWeight.w700,
-                                                  color: isSelected
-                                                      ? Colors.white
-                                                      : Colors.white.withValues(
-                                                          alpha: 0.88,
-                                                        ),
+                                                  color: itemTextColor,
                                                 ),
                                               ),
                                               const SizedBox(height: 2),
@@ -1879,10 +2008,8 @@ class _AddClassSheetState extends State<_AddClassSheet> {
                                                 maxLines: 1,
                                                 overflow: TextOverflow.ellipsis,
                                                 style: TextStyle(
-                                                  color: Theme.of(context)
-                                                      .colorScheme
-                                                      .onSurface
-                                                      .withValues(alpha: 0.54),
+                                                  color: itemTextColor
+                                                      .withValues(alpha: 0.68),
                                                   fontSize: 12,
                                                 ),
                                               ),
@@ -1896,7 +2023,7 @@ class _AddClassSheetState extends State<_AddClassSheet> {
                                             ),
                                             child: Icon(
                                               Icons.check_circle_rounded,
-                                              color: materia.color,
+                                              color: accentColor,
                                               size: 22,
                                             ),
                                           ),
@@ -2194,6 +2321,13 @@ class ClaseCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final brightness = Theme.of(context).brightness;
+    final accentColor = _materiaColorForTheme(color, brightness);
+    final surfaceColor = _cardColorForTheme(color, brightness);
+    final cardTextColor = _defaultTextColor(surfaceColor);
+    final borderColor = Theme.of(context).brightness == Brightness.light
+        ? Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.12)
+        : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.08);
     return InkWell(
       onTap: () {
         showModalBottomSheet(
@@ -2233,12 +2367,18 @@ class ClaseCard extends StatelessWidget {
       borderRadius: BorderRadius.circular(18),
       child: Container(
         decoration: BoxDecoration(
-          color: Theme.of(context).colorScheme.surface,
+          color: surfaceColor,
           borderRadius: BorderRadius.circular(18),
-          border: Border.all(
-            color: Theme.of(context).colorScheme.onSurface
-                .withValues(alpha: 0.08),
-          ),
+          border: Border.all(color: borderColor),
+          boxShadow: Theme.of(context).brightness == Brightness.light
+              ? [
+                  BoxShadow(
+                    color: Colors.black12,
+                    blurRadius: 8,
+                    offset: Offset(0, 3),
+                  ),
+                ]
+              : null,
         ),
         padding: const EdgeInsets.all(12),
         child: Row(
@@ -2248,11 +2388,13 @@ class ClaseCard extends StatelessWidget {
               children: [
                 CircleAvatar(
                   radius: 21,
-                  backgroundColor: color,
+                  backgroundColor: accentColor,
                   child: Text(
                     letraInicial,
-                    style: const TextStyle(
-                      color: Color(0xFF09201D),
+                    style: TextStyle(
+                      color: accentColor.computeLuminance() > 0.5
+                          ? Colors.black
+                          : Colors.white,
                       fontSize: 22,
                       fontWeight: FontWeight.w800,
                     ),
@@ -2261,14 +2403,17 @@ class ClaseCard extends StatelessWidget {
                 const SizedBox(height: 8),
                 Text(
                   horaInicio,
-                  style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16),
+                  style: TextStyle(
+                    color: cardTextColor,
+                    fontWeight: FontWeight.w800,
+                    fontSize: 16,
+                  ),
                 ),
                 const SizedBox(height: 3),
                 Text(
                   horaFin,
                   style: TextStyle(
-                    color: Theme.of(context).colorScheme.onSurface
-                        .withValues(alpha: 0.54),
+                    color: cardTextColor.withValues(alpha: 0.62),
                     fontSize: 14,
                   ),
                 ),
@@ -2283,7 +2428,8 @@ class ClaseCard extends StatelessWidget {
                     materia,
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
+                    style: TextStyle(
+                      color: cardTextColor,
                       fontSize: 17,
                       fontWeight: FontWeight.w800,
                     ),
@@ -2294,8 +2440,7 @@ class ClaseCard extends StatelessWidget {
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
-                      color: Theme.of(context).colorScheme.onSurface
-                          .withValues(alpha: 0.6),
+                      color: cardTextColor.withValues(alpha: 0.72),
                       fontSize: 14,
                     ),
                   ),
@@ -2304,10 +2449,15 @@ class ClaseCard extends StatelessWidget {
                     spacing: 6,
                     runSpacing: 6,
                     children: [
-                      _InfoChip(icon: Icons.location_on_outlined, label: aula),
+                      _InfoChip(
+                        icon: Icons.location_on_outlined,
+                        label: aula,
+                        color: cardTextColor,
+                      ),
                       _InfoChip(
                         icon: Icons.confirmation_number_outlined,
                         label: 'NRC $nrc',
+                        color: cardTextColor,
                       ),
                     ],
                   ),
@@ -2315,8 +2465,7 @@ class ClaseCard extends StatelessWidget {
                   Text(
                     edificio,
                     style: TextStyle(
-                      color: Theme.of(context).colorScheme.onSurface
-                          .withValues(alpha: 0.38),
+                      color: cardTextColor.withValues(alpha: 0.5),
                       fontSize: 13,
                     ),
                   ),
@@ -2333,27 +2482,36 @@ class ClaseCard extends StatelessWidget {
 class _InfoChip extends StatelessWidget {
   final IconData icon;
   final String label;
+  final Color? color;
 
-  const _InfoChip({required this.icon, required this.label});
+  const _InfoChip({required this.icon, required this.label, this.color});
 
   @override
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
       decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.06),
+        color: (color ?? Theme.of(context).colorScheme.onSurface).withValues(
+          alpha: 0.08,
+        ),
         borderRadius: BorderRadius.circular(8),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: 14, color: Theme.of(context).colorScheme.primary),
+          Icon(
+            icon,
+            size: 14,
+            color: color ?? Theme.of(context).colorScheme.primary,
+          ),
           const SizedBox(width: 6),
           Text(
             label,
             style: TextStyle(
-              color: Theme.of(context).colorScheme.onSurface
-                  .withValues(alpha: 0.7),
+              color:
+                  color?.withValues(alpha: 0.78) ??
+                  Theme.of(context).colorScheme.onSurface
+                      .withValues(alpha: 0.7),
               fontSize: 12,
             ),
           ),
@@ -2423,20 +2581,43 @@ class _SaveMateriaSheetState extends State<_SaveMateriaSheet> {
             : _buildingController.text.trim(),
         aula: _roomController.text.trim(),
         color: _materiaColors[_selectedColorIndex],
+        iconColor: _defaultIconColor(_materiaColors[_selectedColorIndex]),
+        textColor: _defaultTextColor(_materiaColors[_selectedColorIndex]),
+        cardColor: _cardColorForTheme(
+          _materiaColors[_selectedColorIndex],
+          Theme.of(context).brightness,
+        ),
       ),
     );
     Navigator.pop(context);
   }
 
   InputDecoration _fieldDecoration(String label, IconData icon) {
+    final borderColor = Theme.of(context).brightness == Brightness.light
+        ? Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.12)
+        : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.12);
+    final fill = Theme.of(context).brightness == Brightness.light
+        ? Colors.white.withValues(alpha: 0.05)
+        : Colors.white.withValues(alpha: 0.02);
     return InputDecoration(
       labelText: label,
       prefixIcon: Icon(icon, size: 19),
       filled: true,
-      fillColor: Colors.white.withValues(alpha: 0.05),
+      fillColor: fill,
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),
-        borderSide: BorderSide.none,
+        borderSide: BorderSide(color: borderColor, width: 1),
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: BorderSide(color: borderColor, width: 1),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: BorderSide(
+          color: Theme.of(context).colorScheme.primary,
+          width: 2,
+        ),
       ),
       contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
     );
@@ -2538,7 +2719,6 @@ class _SaveMateriaSheetState extends State<_SaveMateriaSheet> {
                     Icons.business_outlined,
                   ),
                 ),
-                const SizedBox(height: 16),
                 Text(
                   'Color',
                   style: Theme.of(context).textTheme.titleSmall
@@ -2567,7 +2747,8 @@ class _SaveMateriaSheetState extends State<_SaveMateriaSheet> {
                               border: Border.all(
                                 color: isSelected
                                     ? Colors.white
-                                    : Colors.transparent,
+                                    : Theme.of(context).colorScheme.onSurface
+                                          .withValues(alpha: 0.2),
                                 width: 3,
                               ),
                             ),
@@ -2709,14 +2890,31 @@ class _EditClassSheetState extends State<_EditClassSheet> {
   }
 
   InputDecoration _fieldDecoration(String label, IconData icon) {
+    final borderColor = Theme.of(context).brightness == Brightness.light
+        ? Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.12)
+        : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.12);
+    final fill = Theme.of(context).brightness == Brightness.light
+        ? Colors.white.withValues(alpha: 0.05)
+        : Colors.white.withValues(alpha: 0.02);
     return InputDecoration(
       labelText: label,
       prefixIcon: Icon(icon, size: 19),
       filled: true,
-      fillColor: Colors.white.withValues(alpha: 0.05),
+      fillColor: fill,
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),
-        borderSide: BorderSide.none,
+        borderSide: BorderSide(color: borderColor, width: 1),
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: BorderSide(color: borderColor, width: 1),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: BorderSide(
+          color: Theme.of(context).colorScheme.primary,
+          width: 2,
+        ),
       ),
       contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
     );
@@ -2945,6 +3143,10 @@ class MateriaGuardadaCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final brightness = Theme.of(context).brightness;
+    final accentColor = _materiaColorForTheme(materia.color, brightness);
+    final cardColor = _cardColorForTheme(materia.color, brightness);
+    final cardTextColor = _defaultTextColor(cardColor);
     return InkWell(
       onTap: () {
         showModalBottomSheet(
@@ -2995,7 +3197,7 @@ class MateriaGuardadaCard extends StatelessWidget {
       borderRadius: BorderRadius.circular(18),
       child: Container(
         decoration: BoxDecoration(
-          color: Theme.of(context).colorScheme.surface,
+          color: cardColor,
           borderRadius: BorderRadius.circular(18),
           border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
         ),
@@ -3005,11 +3207,11 @@ class MateriaGuardadaCard extends StatelessWidget {
           children: [
             CircleAvatar(
               radius: 24,
-              backgroundColor: materia.color,
+              backgroundColor: accentColor,
               child: Text(
                 materia.materia.substring(0, 1).toUpperCase(),
-                style: const TextStyle(
-                  color: Color(0xFF09201D),
+                style: TextStyle(
+                  color: materia.textColor,
                   fontSize: 22,
                   fontWeight: FontWeight.w800,
                 ),
@@ -3020,21 +3222,37 @@ class MateriaGuardadaCard extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    materia.materia,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      fontSize: 17,
-                      fontWeight: FontWeight.w800,
-                    ),
+                  Row(
+                    children: [
+                      Icon(
+                        Icons.menu_book_rounded,
+                        size: 16,
+                        color: cardTextColor,
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          materia.materia,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontSize: 17,
+                            fontWeight: FontWeight.w800,
+                            color: cardTextColor,
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                   const SizedBox(height: 7),
                   Text(
                     materia.profesor,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(color: Colors.white60, fontSize: 14),
+                    style: TextStyle(
+                      color: cardTextColor.withValues(alpha: 0.72),
+                      fontSize: 14,
+                    ),
                   ),
                   const SizedBox(height: 16),
                   Wrap(
@@ -3054,7 +3272,10 @@ class MateriaGuardadaCard extends StatelessWidget {
                   const SizedBox(height: 8),
                   Text(
                     materia.edificio,
-                    style: const TextStyle(color: Colors.white38, fontSize: 13),
+                    style: TextStyle(
+                      color: cardTextColor.withValues(alpha: 0.5),
+                      fontSize: 13,
+                    ),
                   ),
                 ],
               ),
@@ -3121,15 +3342,32 @@ class _EditMateriaSheetState extends State<_EditMateriaSheet> {
   }
 
   InputDecoration _fieldDecoration(String label, IconData icon) {
+    final borderColor = Theme.of(context).brightness == Brightness.light
+        ? Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.12)
+        : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.12);
+    final fill = Theme.of(context).brightness == Brightness.light
+        ? Colors.white.withValues(alpha: 0.05)
+        : Colors.white.withValues(alpha: 0.02);
     return InputDecoration(
       labelText: label,
       prefixIcon: Icon(icon, color: const Color(0xFF53D1B6)),
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),
-        borderSide: BorderSide.none,
+        borderSide: BorderSide(color: borderColor, width: 1),
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: BorderSide(color: borderColor, width: 1),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: BorderSide(
+          color: Theme.of(context).colorScheme.primary,
+          width: 2,
+        ),
       ),
       filled: true,
-      fillColor: Colors.white.withValues(alpha: 0.05),
+      fillColor: fill,
       labelStyle: const TextStyle(color: Colors.white70),
     );
   }
@@ -3143,6 +3381,12 @@ class _EditMateriaSheetState extends State<_EditMateriaSheet> {
         edificio: _buildingController.text.trim(),
         aula: _roomController.text.trim(),
         color: _selectedColor,
+        iconColor: _defaultIconColor(_selectedColor),
+        textColor: _defaultTextColor(_selectedColor),
+        cardColor: _cardColorForTheme(
+          _selectedColor,
+          Theme.of(context).brightness,
+        ),
       );
       widget.onSave(updatedMateria);
       Navigator.pop(context);
