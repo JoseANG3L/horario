@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:timezone/timezone.dart' as tz;
 import 'package:timezone/data/latest.dart' as tz_data;
@@ -484,7 +485,7 @@ class MateriaGuardada {
 Color _cardColorForTheme(Color color, Brightness brightness) {
   final hsl = HSLColor.fromColor(color);
   return hsl
-      .withLightness(brightness == Brightness.light ? 0.86 : 0.15)
+      .withLightness(brightness == Brightness.light ? 0.90 : 0.10)
       .withSaturation(brightness == Brightness.light ? 0.48 : 0.30)
       .toColor();
 }
@@ -518,7 +519,7 @@ Color _pageBackgroundForPrimary(Color color, Brightness brightness) {
 Color _menuBackgroundForPrimary(Color color, Brightness brightness) {
   final hsl = HSLColor.fromColor(color);
   return hsl
-      .withLightness(brightness == Brightness.light ? 0.88 : 0.13)
+  .withLightness(brightness == Brightness.light ? 0.88 : 0.08)
       .withSaturation(brightness == Brightness.light ? 0.16 : 0.28)
       .toColor();
 }
@@ -638,6 +639,13 @@ class _HorarioScreenState extends State<HorarioScreen>
       });
     }
 
+    if (_classesByDay.every((classes) => classes.isEmpty)) {
+      await _addSampleSchedule();
+    }
+    if (_materiasGuardadas.isEmpty) {
+      await _addSampleSavedSubjects();
+    }
+
     // Cargar preferencia de notificaciones
     setState(() {
       _notificationsEnabled = prefs.getBool('notifications_enabled') ?? false;
@@ -647,6 +655,74 @@ class _HorarioScreenState extends State<HorarioScreen>
     if (_notificationsEnabled) {
       await _scheduleNextClassNotification();
     }
+  }
+
+  Future<void> _addSampleSchedule() async {
+    const sampleSubjects = [
+      ('Matemáticas', '08:00', '09:00'),
+      ('Programación', '09:15', '10:15'),
+      ('Diseño', '10:30', '11:30'),
+      ('Inglés', '11:45', '12:45'),
+    ];
+    const sampleColors = [
+      Color(0xFF4DD0E1),
+      Color(0xFFFFB74D),
+      Color(0xFFE57373),
+      Color(0xFFAED581),
+    ];
+
+    setState(() {
+      for (var dayIndex = 0; dayIndex < _days.length; dayIndex++) {
+        _classesByDay[dayIndex] = [
+          for (var subjectIndex = 0;
+              subjectIndex < sampleSubjects.length;
+              subjectIndex++)
+            Clase(
+              materia: sampleSubjects[subjectIndex].$1,
+              profesor: 'Profesor de prueba',
+              nrc: 'PRUEBA-${dayIndex + 1}${subjectIndex + 1}',
+              edificio: 'Edificio A',
+              aula: 'A-${subjectIndex + 1}01',
+              horaInicio: sampleSubjects[subjectIndex].$2,
+              horaFin: sampleSubjects[subjectIndex].$3,
+              letraInicial: sampleSubjects[subjectIndex].$1
+                  .substring(0, 1)
+                  .toUpperCase(),
+              color: sampleColors[subjectIndex],
+              cardColor: sampleColors[subjectIndex],
+            ),
+        ];
+      }
+    });
+    await _saveSchedule();
+  }
+
+  Future<void> _addSampleSavedSubjects() async {
+    const sampleSubjects = [
+      ('Matemáticas', 'Profesor de prueba', Color(0xFF4DD0E1)),
+      ('Programación', 'Profesor de prueba', Color(0xFFFFB74D)),
+      ('Diseño', 'Profesor de prueba', Color(0xFFE57373)),
+      ('Inglés', 'Profesor de prueba', Color(0xFFAED581)),
+    ];
+
+    setState(() {
+      _materiasGuardadas.addAll(
+        sampleSubjects.map(
+          (subject) => MateriaGuardada(
+            materia: subject.$1,
+            profesor: subject.$2,
+            nrc: 'MUESTRA',
+            edificio: 'Edificio A',
+            aula: 'Aula de prueba',
+            color: subject.$3,
+            iconColor: _defaultIconColor(subject.$3),
+            textColor: _defaultTextColor(subject.$3),
+            cardColor: subject.$3,
+          ),
+        ),
+      );
+    });
+    await _saveMateriasGuardadas();
   }
 
   Future<void> _saveSchedule() async {
@@ -874,6 +950,29 @@ class _HorarioScreenState extends State<HorarioScreen>
         backgroundColor: widget.screenBackgroundColor,
         surfaceTintColor: Colors.transparent,
         elevation: 0,
+        actions: [
+          if (_selectedTab == 0)
+            Padding(
+              padding: const EdgeInsets.only(right: 12),
+              child: IconButton(
+                tooltip: widget.themeMode == ThemeMode.dark
+                    ? 'Cambiar a modo claro'
+                    : 'Cambiar a modo oscuro',
+                icon: Icon(
+                  widget.themeMode == ThemeMode.dark
+                      ? LucideIcons.sun
+                      : LucideIcons.moon,
+                ),
+                onPressed: () {
+                  widget.onThemeModeChanged(
+                    widget.themeMode == ThemeMode.dark
+                        ? ThemeMode.light
+                        : ThemeMode.dark,
+                  );
+                },
+              ),
+            ),
+        ],
       ),
       drawer: Drawer(
         backgroundColor: widget.menuBackgroundColor,
@@ -2369,16 +2468,6 @@ class ClaseCard extends StatelessWidget {
         decoration: BoxDecoration(
           color: surfaceColor,
           borderRadius: BorderRadius.circular(18),
-          border: Border.all(color: borderColor),
-          boxShadow: Theme.of(context).brightness == Brightness.light
-              ? [
-                  BoxShadow(
-                    color: Colors.black12,
-                    blurRadius: 8,
-                    offset: Offset(0, 3),
-                  ),
-                ]
-              : null,
         ),
         padding: const EdgeInsets.all(12),
         child: Row(
