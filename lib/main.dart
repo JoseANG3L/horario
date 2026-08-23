@@ -9,13 +9,7 @@ import 'package:timezone/data/latest.dart' as tz_data;
 
 import 'dart:convert';
 
-extension _ColorUtils on Color {
-  int toARGB32() => value;
-
-  /// Helper compatible con el código original: devuelve el color
-  /// con la opacidad indicada (0.0 - 1.0).
-  Color withValues({double alpha = 1.0}) => withOpacity(alpha);
-}
+enum DayLabelFormat { full, short, initial }
 
 final FlutterLocalNotificationsPlugin _notificationsPlugin =
     FlutterLocalNotificationsPlugin();
@@ -57,21 +51,29 @@ class _MainAppState extends State<MainApp> {
   static const _defaultPrimaryColor = Color(0xFF53D1B6);
   Color _primaryColor = _defaultPrimaryColor;
 
-  static const _colorOptions = [
+  static const _lightPrimaryColorOptions = [
     Color(0xFF53D1B6),
-    Color(0xFF8AB4F8),
-    Color(0xFFFFC857),
-    Color(0xFFFF8A65),
-    Color(0xFFD7A8FF),
-    Color(0xFFF48FB1),
-    Color(0xFF80CBC4),
-    Color(0xFF64B5F6),
-    Color(0xFFFFB74D),
-    Color(0xFFE57373),
-    Color(0xFFBA68C8),
-    Color(0xFFAED581),
-    Color(0xFF4DD0E1),
-    Color(0xFFFF8A65),
+    Color(0xFF60A5FA),
+    Color(0xFFFCD34D),
+    Color(0xFFFDA4AF),
+    Color(0xFFC4B5FD),
+    Color(0xFF5EEAD4),
+    Color(0xFFA3E635),
+    Color(0xFFFECACA),
+  ];
+  static const _darkPrimaryColorOptions = [
+    Color(0xFF0F766E),
+    Color(0xFF1D4ED8),
+    Color(0xFFB45309),
+    Color(0xFFBE123C),
+    Color(0xFF6D28D9),
+    Color(0xFF0E7490),
+    Color(0xFF3F6212),
+    Color(0xFF991B1B),
+  ];
+  static const _colorOptions = [
+    ..._lightPrimaryColorOptions,
+    ..._darkPrimaryColorOptions,
   ];
   String _profileName = 'Tu nombre';
   String _profileDetail = 'Organiza tu semana';
@@ -329,6 +331,27 @@ class _MainAppState extends State<MainApp> {
               ? Brightness.light
               : Brightness.dark,
         ),
+        appBarTheme: AppBarTheme(
+          centerTitle: false,
+          titleTextStyle: TextStyle(
+            color: _themeMode == ThemeMode.light
+                ? Colors.black87
+                : Colors.white,
+            fontSize: 21,
+            fontWeight: FontWeight.w800,
+          ),
+          iconTheme: IconThemeData(
+            color: _themeMode == ThemeMode.light
+                ? Colors.black87
+                : Colors.white,
+          ),
+        ),
+        dividerTheme: DividerThemeData(
+          color: _themeMode == ThemeMode.light
+              ? Colors.black.withValues(alpha: 0.08)
+              : Colors.white.withValues(alpha: 0.08),
+          space: 1,
+        ),
         useMaterial3: true,
       ),
       home: HorarioScreen(
@@ -485,16 +508,16 @@ class MateriaGuardada {
 Color _cardColorForTheme(Color color, Brightness brightness) {
   final hsl = HSLColor.fromColor(color);
   return hsl
-      .withLightness(brightness == Brightness.light ? 0.90 : 0.10)
-      .withSaturation(brightness == Brightness.light ? 0.48 : 0.30)
+      .withLightness(brightness == Brightness.light ? 0.89 : 0.16)
+      .withSaturation(brightness == Brightness.light ? 0.48 : 0.22)
       .toColor();
 }
 
 Color _materiaColorForTheme(Color color, Brightness brightness) {
   final hsl = HSLColor.fromColor(color);
   return hsl
-      .withLightness(brightness == Brightness.light ? 0.48 : 0.68)
-      .withSaturation(brightness == Brightness.light ? 0.68 : 0.48)
+      .withLightness(brightness == Brightness.light ? 0.80 : 0.32)
+      .withSaturation(brightness == Brightness.light ? 0.88 : 0.68)
       .toColor();
 }
 
@@ -502,6 +525,17 @@ Color _defaultCardColor(Color background) => _cardColorForTheme(
   background,
   background.computeLuminance() > 0.5 ? Brightness.light : Brightness.dark,
 );
+
+BoxDecoration _scheduleCardDecoration(
+  BuildContext context, {
+  required Color backgroundColor,
+  required Color accentColor,
+}) {
+  return BoxDecoration(
+    color: backgroundColor,
+    borderRadius: BorderRadius.circular(18),
+  );
+}
 
 Color _defaultIconColor(Color background) =>
     background.computeLuminance() > 0.5 ? Colors.black : Colors.white;
@@ -511,15 +545,15 @@ Color _defaultTextColor(Color background) =>
 Color _pageBackgroundForPrimary(Color color, Brightness brightness) {
   final hsl = HSLColor.fromColor(color);
   return hsl
-      .withLightness(brightness == Brightness.light ? 0.97 : 0.10)
-      .withSaturation(brightness == Brightness.light ? 0.12 : 0.22)
+      .withLightness(brightness == Brightness.light ? 0.94 : 0.12)
+      .withSaturation(brightness == Brightness.light ? 0.22 : 0.32)
       .toColor();
 }
 
 Color _menuBackgroundForPrimary(Color color, Brightness brightness) {
   final hsl = HSLColor.fromColor(color);
   return hsl
-  .withLightness(brightness == Brightness.light ? 0.88 : 0.08)
+      .withLightness(brightness == Brightness.light ? 0.88 : 0.08)
       .withSaturation(brightness == Brightness.light ? 0.16 : 0.28)
       .toColor();
 }
@@ -579,42 +613,74 @@ class HorarioScreen extends StatefulWidget {
 }
 
 class _HorarioScreenState extends State<HorarioScreen>
-    with SingleTickerProviderStateMixin {
-  late final TabController _tabController;
+    with TickerProviderStateMixin {
+  late TabController _tabController;
   int _selectedDay = 0;
   int _selectedTab = 0; // 0 = Horario, 1 = Materias Guardadas
   bool _notificationsEnabled = false;
+  bool _showWeekend = true;
+  int _weekStart = 1;
+  DayLabelFormat _dayLabelFormat = DayLabelFormat.full;
 
-  static const _days = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes'];
-  final List<List<Clase>> _classesByDay = [[], [], [], [], []];
+  static const _allDays = [
+    'Domingo',
+    'Lunes',
+    'Martes',
+    'Miércoles',
+    'Jueves',
+    'Viernes',
+    'Sábado',
+  ];
+  final List<List<Clase>> _classesByDay = [[], [], [], [], [], [], []];
   final List<MateriaGuardada> _materiasGuardadas = [];
+
+  List<int> get _visibleDayIndices {
+    final indices = List.generate(7, (offset) => (_weekStart + offset) % 7);
+    return _showWeekend
+        ? indices
+        : indices.where((index) => index >= 1 && index <= 5).toList();
+  }
+
+  List<String> get _visibleDays =>
+      _visibleDayIndices.map((index) => _allDays[index]).toList();
 
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: _days.length, vsync: this);
+    _tabController = TabController(length: 7, vsync: this);
 
     // Establecer el día actual
     final today = DateTime.now().weekday; // 1 = Lunes, 7 = Domingo
-    if (today >= 1 && today <= 5) {
-      _selectedDay = today - 1;
+    if (today >= 1 && today <= 6) {
+      _selectedDay = today;
       _tabController.index = _selectedDay;
+    } else if (today == 7) {
+      _selectedDay = 0;
+      _tabController.index = 0;
     }
 
     _tabController.addListener(() {
-      if (!_tabController.indexIsChanging &&
-          _selectedDay != _tabController.index) {
-        setState(() => _selectedDay = _tabController.index);
-      }
+      _handleDayTabChange();
     });
     _loadData();
   }
 
   Future<void> _loadData() async {
     final prefs = await SharedPreferences.getInstance();
+    _showWeekend = prefs.getBool('show_weekend') ?? true;
+    final savedWeekStart = prefs.getInt('week_start') ?? 1;
+    _weekStart = savedWeekStart >= 0 && savedWeekStart <= 6
+        ? savedWeekStart
+        : 1;
+    final savedLabelFormat = prefs.getString('day_label_format');
+    _dayLabelFormat = DayLabelFormat.values.firstWhere(
+      (format) => format.name == savedLabelFormat,
+      orElse: () => DayLabelFormat.full,
+    );
+    _replaceTabController();
 
     // Cargar horario
-    for (int i = 0; i < _days.length; i++) {
+    for (int i = 0; i < _allDays.length; i++) {
       final classesJson = prefs.getStringList('horario_dia_$i');
       if (classesJson != null) {
         setState(() {
@@ -645,6 +711,7 @@ class _HorarioScreenState extends State<HorarioScreen>
     if (_materiasGuardadas.isEmpty) {
       await _addSampleSavedSubjects();
     }
+    if (mounted) setState(() {});
 
     // Cargar preferencia de notificaciones
     setState(() {
@@ -655,6 +722,54 @@ class _HorarioScreenState extends State<HorarioScreen>
     if (_notificationsEnabled) {
       await _scheduleNextClassNotification();
     }
+  }
+
+  void _replaceTabController() {
+    final selectedIndex = _visibleDayIndices.indexOf(_selectedDay);
+    _tabController.dispose();
+    _tabController = TabController(
+      length: _visibleDayIndices.length,
+      vsync: this,
+      initialIndex: selectedIndex >= 0 ? selectedIndex : 0,
+    );
+    _tabController.addListener(_handleDayTabChange);
+    if (selectedIndex < 0) {
+      _selectedDay = _visibleDayIndices.first;
+    }
+    if (mounted) setState(() {});
+  }
+
+  void _handleDayTabChange() {
+    if (!_tabController.indexIsChanging &&
+        _tabController.index < _visibleDayIndices.length) {
+      final day = _visibleDayIndices[_tabController.index];
+      if (_selectedDay != day) setState(() => _selectedDay = day);
+    }
+  }
+
+  Future<void> _updateWeekSettings({
+    bool? showWeekend,
+    int? weekStart,
+    DayLabelFormat? labelFormat,
+  }) async {
+    _showWeekend = showWeekend ?? _showWeekend;
+    _weekStart = weekStart ?? _weekStart;
+    _dayLabelFormat = labelFormat ?? _dayLabelFormat;
+    _replaceTabController();
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('show_weekend', _showWeekend);
+    await prefs.setInt('week_start', _weekStart);
+    await prefs.setString('day_label_format', _dayLabelFormat.name);
+  }
+
+  String _formatDay(String day) {
+    if (_dayLabelFormat == DayLabelFormat.initial) {
+      return day == 'Miércoles' ? 'X' : day.substring(0, 1);
+    }
+    if (_dayLabelFormat == DayLabelFormat.short) {
+      return day.substring(0, 3);
+    }
+    return day;
   }
 
   Future<void> _addSampleSchedule() async {
@@ -672,11 +787,13 @@ class _HorarioScreenState extends State<HorarioScreen>
     ];
 
     setState(() {
-      for (var dayIndex = 0; dayIndex < _days.length; dayIndex++) {
+      for (var dayIndex = 0; dayIndex < _allDays.length; dayIndex++) {
         _classesByDay[dayIndex] = [
-          for (var subjectIndex = 0;
-              subjectIndex < sampleSubjects.length;
-              subjectIndex++)
+          for (
+            var subjectIndex = 0;
+            subjectIndex < sampleSubjects.length;
+            subjectIndex++
+          )
             Clase(
               materia: sampleSubjects[subjectIndex].$1,
               profesor: 'Profesor de prueba',
@@ -727,7 +844,7 @@ class _HorarioScreenState extends State<HorarioScreen>
 
   Future<void> _saveSchedule() async {
     final prefs = await SharedPreferences.getInstance();
-    for (int i = 0; i < _days.length; i++) {
+    for (int i = 0; i < _allDays.length; i++) {
       final classesJson = _classesByDay[i]
           .map((clase) => jsonEncode(clase.toJson()))
           .toList();
@@ -755,13 +872,14 @@ class _HorarioScreenState extends State<HorarioScreen>
       isScrollControlled: true,
       backgroundColor: Theme.of(context).colorScheme.surface,
       builder: (context) => _AddClassSheet(
-        days: _days,
-        initialDay: _selectedDay,
+        days: _visibleDays,
+        initialDay: _visibleDayIndices.indexOf(_selectedDay),
         materiasGuardadas: _materiasGuardadas,
         onSave: (day, newClass) async {
           setState(() {
-            _classesByDay[day].add(newClass);
-            _classesByDay[day].sort(_compareClassesByStartTime);
+            final canonicalDay = _visibleDayIndices[day];
+            _classesByDay[canonicalDay].add(newClass);
+            _classesByDay[canonicalDay].sort(_compareClassesByStartTime);
           });
           await _saveSchedule();
           _tabController.animateTo(day);
@@ -802,7 +920,7 @@ class _HorarioScreenState extends State<HorarioScreen>
           setState(() {
             _materiasGuardadas[index] = updatedMateria;
             // Actualizar el color en todas las clases del horario que tengan esta materia
-            for (int day = 0; day < _days.length; day++) {
+            for (int day = 0; day < _allDays.length; day++) {
               for (int i = 0; i < _classesByDay[day].length; i++) {
                 if (_classesByDay[day][i].materia == oldMateriaName) {
                   _classesByDay[day][i] = Clase(
@@ -842,14 +960,15 @@ class _HorarioScreenState extends State<HorarioScreen>
       isScrollControlled: true,
       backgroundColor: Theme.of(context).colorScheme.surface,
       builder: (context) => _EditClassSheet(
-        days: _days,
-        initialDay: dayIndex,
+        days: _visibleDays,
+        initialDay: _visibleDayIndices.indexOf(dayIndex),
         materiasGuardadas: _materiasGuardadas,
         initialClass: clase,
         onSave: (day, updatedClass) async {
           setState(() {
-            _classesByDay[day][classIndex] = updatedClass;
-            _classesByDay[day].sort(_compareClassesByStartTime);
+            final canonicalDay = _visibleDayIndices[day];
+            _classesByDay[canonicalDay][classIndex] = updatedClass;
+            _classesByDay[canonicalDay].sort(_compareClassesByStartTime);
           });
           await _saveSchedule();
           _tabController.animateTo(day);
@@ -946,173 +1065,179 @@ class _HorarioScreenState extends State<HorarioScreen>
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Horario'),
+        title: Text(
+          _selectedTab == 1
+              ? 'Materias'
+              : _selectedTab == 2
+              ? 'Perfil'
+              : _selectedTab == 3
+              ? 'Personalizar'
+              : _selectedTab == 4
+              ? 'Notificaciones'
+              : 'Horario',
+        ),
+        titleSpacing: 4,
         backgroundColor: widget.screenBackgroundColor,
         surfaceTintColor: Colors.transparent,
         elevation: 0,
+        scrolledUnderElevation: 0,
         actions: [
-          if (_selectedTab == 0)
-            Padding(
-              padding: const EdgeInsets.only(right: 12),
-              child: IconButton(
-                tooltip: widget.themeMode == ThemeMode.dark
-                    ? 'Cambiar a modo claro'
-                    : 'Cambiar a modo oscuro',
-                icon: Icon(
-                  widget.themeMode == ThemeMode.dark
-                      ? LucideIcons.sun
-                      : LucideIcons.moon,
-                ),
-                onPressed: () {
-                  widget.onThemeModeChanged(
-                    widget.themeMode == ThemeMode.dark
-                        ? ThemeMode.light
-                        : ThemeMode.dark,
-                  );
-                },
+          Padding(
+            padding: const EdgeInsets.only(right: 12),
+            child: IconButton(
+              tooltip: widget.themeMode == ThemeMode.dark
+                  ? 'Cambiar a modo claro'
+                  : 'Cambiar a modo oscuro',
+              icon: Icon(
+                widget.themeMode == ThemeMode.dark
+                    ? LucideIcons.sun
+                    : LucideIcons.moon,
               ),
+              onPressed: () {
+                widget.onThemeModeChanged(
+                  widget.themeMode == ThemeMode.dark
+                      ? ThemeMode.light
+                      : ThemeMode.dark,
+                );
+              },
             ),
+          ),
         ],
       ),
       drawer: Drawer(
         backgroundColor: widget.menuBackgroundColor,
-        child: ListView(
-          padding: EdgeInsets.zero,
-          children: [
-            DrawerHeader(
-              decoration: BoxDecoration(
-                color: Theme.of(context).colorScheme.primary,
-                image:
-                    widget.useHeaderImage &&
-                        (widget.headerImageBytes != null ||
-                            widget.headerImageUrl.isNotEmpty)
-                    ? DecorationImage(
-                        image: widget.headerImageBytes != null
-                            ? MemoryImage(widget.headerImageBytes!)
-                            : NetworkImage(widget.headerImageUrl),
-                        fit: BoxFit.cover,
-                        colorFilter: ColorFilter.mode(
-                          Colors.black.withValues(alpha: 0.42),
-                          BlendMode.darken,
-                        ),
-                      )
-                    : null,
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisAlignment: MainAxisAlignment.end,
-                children: [
-                  Icon(
-                    Icons.calendar_month_rounded,
-                    size: 32,
-                    color: widget.menuTextColor,
-                  ),
-                  const SizedBox(height: 10),
-                  Text(
-                    widget.profileName,
-                    style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                      color: widget.menuTextColor,
-                      fontWeight: FontWeight.w800,
+        child: Material(
+          color: widget.menuBackgroundColor,
+          child: ListView(
+            padding: EdgeInsets.zero,
+            children: [
+              DrawerHeader(
+                decoration: BoxDecoration(
+                  color: widget.screenBackgroundColor,
+                  image:
+                      widget.useHeaderImage &&
+                          (widget.headerImageBytes != null ||
+                              widget.headerImageUrl.isNotEmpty)
+                      ? DecorationImage(
+                          image: widget.headerImageBytes != null
+                              ? MemoryImage(widget.headerImageBytes!)
+                              : NetworkImage(widget.headerImageUrl),
+                          fit: BoxFit.cover,
+                          colorFilter: ColorFilter.mode(
+                            Colors.black.withValues(alpha: 0.42),
+                            BlendMode.darken,
+                          ),
+                        )
+                      : null,
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    Text(
+                      widget.profileName,
+                      style: Theme.of(context).textTheme.headlineSmall
+                          ?.copyWith(
+                            color: widget.menuTextColor,
+                            fontWeight: FontWeight.w800,
+                          ),
                     ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    widget.profileDetail,
-                    style: TextStyle(
-                      color: widget.menuTextColor.withValues(alpha: 0.7),
+                    const SizedBox(height: 6),
+                    Text(
+                      widget.profileDetail,
+                      style: TextStyle(
+                        color: widget.menuTextColor.withValues(alpha: 0.6),
+                      ),
                     ),
-                  ),
-                ],
-              ),
-            ),
-            ListTile(
-              leading: Icon(
-                Icons.calendar_today_rounded,
-                color: widget.menuTextColor,
-              ),
-              title: Text(
-                'Horario',
-                style: TextStyle(color: widget.menuTextColor),
-              ),
-              selected: _selectedTab == 0,
-              selectedTileColor: widget.menuTextColor.withValues(alpha: 0.05),
-              onTap: () {
-                setState(() => _selectedTab = 0);
-                Navigator.pop(context);
-              },
-            ),
-            ListTile(
-              leading: Icon(
-                Icons.bookmark_rounded,
-                color: widget.menuTextColor,
-              ),
-              title: Text(
-                'Materias Guardadas',
-                style: TextStyle(color: widget.menuTextColor),
-              ),
-              selected: _selectedTab == 1,
-              selectedTileColor: widget.menuTextColor.withValues(alpha: 0.05),
-              onTap: () {
-                setState(() => _selectedTab = 1);
-                Navigator.pop(context);
-              },
-            ),
-            const Divider(),
-            ListTile(
-              leading: Icon(
-                Icons.palette_outlined,
-                color: widget.menuTextColor,
-              ),
-              title: Text(
-                'Apariencia',
-                style: TextStyle(color: widget.menuTextColor),
-              ),
-              subtitle: Text(
-                'Personalizar color principal',
-                style: TextStyle(
-                  color: widget.menuTextColor.withValues(alpha: 0.7),
+                    const SizedBox(height: 4),
+                  ],
                 ),
               ),
-              selected: _selectedTab == 2,
-              selectedTileColor: widget.menuTextColor.withValues(alpha: 0.05),
-              onTap: () {
-                setState(() => _selectedTab = 2);
-                Navigator.pop(context);
-              },
-            ),
-            const Divider(),
-            SwitchListTile(
-              secondary: Icon(
-                Icons.notifications_rounded,
-                color: widget.menuTextColor,
-              ),
-              title: Text(
-                'Notificaciones',
-                style: TextStyle(color: widget.menuTextColor),
-              ),
-              subtitle: Text(
-                'Recordatorio de próxima clase',
-                style: TextStyle(
-                  color: widget.menuTextColor.withValues(alpha: 0.7),
+              ListTile(
+                leading: Icon(LucideIcons.user, color: widget.menuTextColor),
+                title: Text(
+                  'Perfil',
+                  style: TextStyle(color: widget.menuTextColor),
                 ),
+                selected: _selectedTab == 2,
+                selectedTileColor: widget.menuTextColor.withValues(alpha: 0.05),
+                onTap: () {
+                  setState(() => _selectedTab = 2);
+                  Navigator.pop(context);
+                },
               ),
-              value: _notificationsEnabled,
-              onChanged: (value) {
-                _toggleNotifications(value);
-              },
-            ),
-          ],
+              ListTile(
+                leading: Icon(
+                  LucideIcons.calendar,
+                  color: widget.menuTextColor,
+                ),
+                title: Text(
+                  'Horario',
+                  style: TextStyle(color: widget.menuTextColor),
+                ),
+                selected: _selectedTab == 0,
+                selectedTileColor: widget.menuTextColor.withValues(alpha: 0.05),
+                onTap: () {
+                  setState(() => _selectedTab = 0);
+                  Navigator.pop(context);
+                },
+              ),
+              ListTile(
+                leading: Icon(
+                  LucideIcons.bookmark,
+                  color: widget.menuTextColor,
+                ),
+                title: Text(
+                  'Materias',
+                  style: TextStyle(color: widget.menuTextColor),
+                ),
+                selected: _selectedTab == 1,
+                selectedTileColor: widget.menuTextColor.withValues(alpha: 0.05),
+                onTap: () {
+                  setState(() => _selectedTab = 1);
+                  Navigator.pop(context);
+                },
+              ),
+              ListTile(
+                leading: Icon(LucideIcons.palette, color: widget.menuTextColor),
+                title: Text(
+                  'Personalizar',
+                  style: TextStyle(color: widget.menuTextColor),
+                ),
+                selected: _selectedTab == 3,
+                selectedTileColor: widget.menuTextColor.withValues(alpha: 0.05),
+                onTap: () {
+                  setState(() => _selectedTab = 3);
+                  Navigator.pop(context);
+                },
+              ),
+              ListTile(
+                leading: Icon(LucideIcons.bell, color: widget.menuTextColor),
+                title: Text(
+                  'Notificaciones',
+                  style: TextStyle(color: widget.menuTextColor),
+                ),
+                selected: _selectedTab == 4,
+                selectedTileColor: widget.menuTextColor.withValues(alpha: 0.05),
+                onTap: () {
+                  setState(() => _selectedTab = 4);
+                  Navigator.pop(context);
+                },
+              ),
+            ],
+          ),
         ),
       ),
       body: SafeArea(
         child: _selectedTab == 0
             ? _ScheduleTab(
                 tabController: _tabController,
-                days: _days,
+                days: _visibleDays.map(_formatDay).toList(),
+                dayIndices: _visibleDayIndices,
                 classesByDay: _classesByDay,
-                selectedDay: _selectedDay,
+                selectedDay: _visibleDayIndices.indexOf(_selectedDay),
                 onSelectedDayChanged: (day) {
-                  setState(() => _selectedDay = day);
+                  setState(() => _selectedDay = _visibleDayIndices[day]);
                 },
                 onDeleteClass: _deleteClass,
                 onEditClass: _editClass,
@@ -1126,15 +1251,21 @@ class _HorarioScreenState extends State<HorarioScreen>
                 },
                 onEdit: _editMateriaGuardada,
               )
-            : _AppearanceSection(
+            : _selectedTab == 2
+            ? _ProfileSection(
+                profileName: widget.profileName,
+                profileDetail: widget.profileDetail,
+                useHeaderImage: widget.useHeaderImage,
+                headerImageBytes: widget.headerImageBytes,
+                primaryColor: widget.primaryColor,
+                themeMode: widget.themeMode,
+                onProfileChanged: widget.onProfileChanged,
+              )
+            : _selectedTab == 3
+            ? _AppearanceSection(
                 colorOptions: widget.colorOptions,
                 primaryColor: widget.primaryColor,
                 onColorChanged: widget.onPrimaryColorChanged,
-                profileName: widget.profileName,
-                profileDetail: widget.profileDetail,
-                headerImageUrl: widget.headerImageUrl,
-                useHeaderImage: widget.useHeaderImage,
-                headerImageBytes: widget.headerImageBytes,
                 menuTextColor: widget.menuTextColor,
                 onMenuTextColorChanged: widget.onMenuTextColorChanged,
                 menuBackgroundColor: widget.menuBackgroundColor,
@@ -1146,10 +1277,17 @@ class _HorarioScreenState extends State<HorarioScreen>
                 onThemeModeChanged: widget.onThemeModeChanged,
                 onScreenBackgroundColorChanged:
                     widget.onScreenBackgroundColorChanged,
-                onProfileChanged: widget.onProfileChanged,
+                showWeekend: _showWeekend,
+                weekStart: _weekStart,
+                dayLabelFormat: _dayLabelFormat,
+                onWeekSettingsChanged: _updateWeekSettings,
+              )
+            : _NotificationsSection(
+                notificationsEnabled: _notificationsEnabled,
+                onNotificationsChanged: _toggleNotifications,
               ),
       ),
-      floatingActionButton: _selectedTab == 2
+      floatingActionButton: _selectedTab == 2 || _selectedTab == 4
           ? null
           : FloatingActionButton(
               onPressed: _selectedTab == 0
@@ -1158,9 +1296,7 @@ class _HorarioScreenState extends State<HorarioScreen>
               backgroundColor: Theme.of(context).colorScheme.primary,
               foregroundColor: Theme.of(context).colorScheme.onPrimary,
               child: Icon(
-                _selectedTab == 0
-                    ? Icons.add_rounded
-                    : Icons.bookmark_add_rounded,
+                _selectedTab == 0 ? LucideIcons.plus : LucideIcons.bookmarkPlus,
               ),
             ),
     );
@@ -1172,14 +1308,15 @@ class _HorarioScreenState extends State<HorarioScreen>
       isScrollControlled: true,
       backgroundColor: Theme.of(context).colorScheme.surface,
       builder: (context) => _AddClassSheet(
-        days: _days,
-        initialDay: _selectedDay,
+        days: _visibleDays,
+        initialDay: _visibleDayIndices.indexOf(_selectedDay),
         materiasGuardadas: _materiasGuardadas,
         preselectedMateria: materia,
         onSave: (day, newClass) async {
           setState(() {
-            _classesByDay[day].add(newClass);
-            _classesByDay[day].sort(_compareClassesByStartTime);
+            final canonicalDay = _visibleDayIndices[day];
+            _classesByDay[canonicalDay].add(newClass);
+            _classesByDay[canonicalDay].sort(_compareClassesByStartTime);
           });
           await _saveSchedule();
           _tabController.animateTo(day);
@@ -1193,11 +1330,6 @@ class _AppearanceSection extends StatefulWidget {
   final List<Color> colorOptions;
   final Color primaryColor;
   final Future<void> Function(Color color) onColorChanged;
-  final String profileName;
-  final String profileDetail;
-  final String headerImageUrl;
-  final bool useHeaderImage;
-  final Uint8List? headerImageBytes;
   final Color menuTextColor;
   final Future<void> Function(Color color) onMenuTextColorChanged;
   final Color menuBackgroundColor;
@@ -1207,25 +1339,20 @@ class _AppearanceSection extends StatefulWidget {
   final List<Color> backgroundOptions;
   final Future<void> Function(ThemeMode mode) onThemeModeChanged;
   final Future<void> Function(Color color) onScreenBackgroundColorChanged;
+  final bool showWeekend;
+  final int weekStart;
+  final DayLabelFormat dayLabelFormat;
   final Future<void> Function({
-    required String name,
-    required String detail,
-    required String imageUrl,
-    required bool useImage,
-    required Uint8List? imageBytes,
-    required Color menuTextColor,
+    bool? showWeekend,
+    int? weekStart,
+    DayLabelFormat? labelFormat,
   })
-  onProfileChanged;
+  onWeekSettingsChanged;
 
   const _AppearanceSection({
     required this.colorOptions,
     required this.primaryColor,
     required this.onColorChanged,
-    required this.profileName,
-    required this.profileDetail,
-    required this.headerImageUrl,
-    required this.useHeaderImage,
-    required this.headerImageBytes,
     required this.menuTextColor,
     required this.onMenuTextColorChanged,
     required this.menuBackgroundColor,
@@ -1235,7 +1362,10 @@ class _AppearanceSection extends StatefulWidget {
     required this.backgroundOptions,
     required this.onThemeModeChanged,
     required this.onScreenBackgroundColorChanged,
-    required this.onProfileChanged,
+    required this.showWeekend,
+    required this.weekStart,
+    required this.dayLabelFormat,
+    required this.onWeekSettingsChanged,
   });
 
   @override
@@ -1243,68 +1373,31 @@ class _AppearanceSection extends StatefulWidget {
 }
 
 class _AppearanceSectionState extends State<_AppearanceSection> {
-  late final TextEditingController _nameController;
-  late final TextEditingController _detailController;
-  late final TextEditingController _imageController;
-  late bool _useImage;
-  Uint8List? _imageBytes;
-  late ThemeMode _themeMode;
+  late bool _showWeekend;
+  late int _weekStart;
+  late DayLabelFormat _dayLabelFormat;
+
+  List<String> get _previewDays {
+    return const ['Lunes'];
+  }
+
+  String _previewLabel(String day) {
+    if (_dayLabelFormat == DayLabelFormat.initial) return day.substring(0, 1);
+    if (_dayLabelFormat == DayLabelFormat.short) return day.substring(0, 3);
+    return day;
+  }
 
   @override
   void initState() {
     super.initState();
-    _nameController = TextEditingController(text: widget.profileName);
-    _detailController = TextEditingController(text: widget.profileDetail);
-    _imageController = TextEditingController(text: widget.headerImageUrl);
-    _useImage = widget.useHeaderImage;
-    _imageBytes = widget.headerImageBytes;
-    _themeMode = widget.themeMode;
+    _showWeekend = widget.showWeekend;
+    _weekStart = widget.weekStart;
+    _dayLabelFormat = widget.dayLabelFormat;
   }
 
   @override
   void dispose() {
-    _nameController.dispose();
-    _detailController.dispose();
-    _imageController.dispose();
     super.dispose();
-  }
-
-  Future<void> _saveProfile() async {
-    final brightness = _themeMode == ThemeMode.light
-        ? Brightness.light
-        : Brightness.dark;
-    final menuBackground = _menuBackgroundForPrimary(
-      widget.primaryColor,
-      brightness,
-    );
-    await widget.onProfileChanged(
-      name: _nameController.text,
-      detail: _detailController.text,
-      imageUrl: _imageController.text,
-      useImage: _useImage,
-      imageBytes: _imageBytes,
-      menuTextColor: _defaultTextColor(menuBackground),
-    );
-    if (mounted) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Personalización guardada')));
-    }
-  }
-
-  Future<void> _pickHeaderImage() async {
-    final pickedFile = await ImagePicker().pickImage(
-      source: ImageSource.gallery,
-    );
-    if (pickedFile == null) return;
-
-    final bytes = await pickedFile.readAsBytes();
-    if (!mounted) return;
-    setState(() {
-      _imageBytes = bytes;
-      _imageController.clear();
-      _useImage = true;
-    });
   }
 
   InputDecoration _fieldDecoration(String label, IconData icon) {
@@ -1341,265 +1434,517 @@ class _AppearanceSectionState extends State<_AppearanceSection> {
   Widget build(BuildContext context) {
     final primaryColor = Theme.of(context).colorScheme.primary;
     final selectedPrimaryColor = widget.primaryColor;
-    final primaryColorOptions = [
-      ...widget.colorOptions,
-      if (!widget.colorOptions.any(
-        (color) => color.toARGB32() == selectedPrimaryColor.toARGB32(),
-      ))
-        selectedPrimaryColor,
-    ];
+    final baseColorCount = widget.colorOptions.length ~/ 2;
+    final lightColorOptions = widget.colorOptions.take(baseColorCount).toList();
+    final darkColorOptions = widget.colorOptions.skip(baseColorCount).toList();
+    if (!widget.colorOptions.any(
+      (color) => color.toARGB32() == selectedPrimaryColor.toARGB32(),
+    )) {
+      final selectedGroup =
+          HSLColor.fromColor(selectedPrimaryColor).lightness >= 0.58
+          ? lightColorOptions
+          : darkColorOptions;
+      selectedGroup.add(selectedPrimaryColor);
+    }
+
+    List<Widget> colorSwatches(List<Color> colors) {
+      return colors.map((color) {
+        final isSelected = selectedPrimaryColor.toARGB32() == color.toARGB32();
+        return Semantics(
+          label: 'Seleccionar color principal',
+          selected: isSelected,
+          button: true,
+          child: InkWell(
+            onTap: () => widget.onColorChanged(color),
+            borderRadius: BorderRadius.circular(24),
+            child: Container(
+              width: 44,
+              height: 44,
+              decoration: BoxDecoration(
+                color: color,
+                shape: BoxShape.circle,
+                border: Border.all(
+                  color: isSelected
+                      ? Theme.of(context).colorScheme.onSurface
+                      : Colors.transparent,
+                  width: isSelected ? 2.5 : 1,
+                ),
+              ),
+              child: isSelected
+                  ? Icon(LucideIcons.check, color: _defaultTextColor(color))
+                  : null,
+            ),
+          ),
+        );
+      }).toList();
+    }
 
     return ListView(
       padding: const EdgeInsets.fromLTRB(20, 24, 20, 32),
       children: [
         Text(
-          'Apariencia',
-          style: Theme.of(context).textTheme.headlineSmall
+          'Color principal',
+          style: Theme.of(context).textTheme.titleMedium
               ?.copyWith(fontWeight: FontWeight.w800),
         ),
-        const SizedBox(height: 6),
+        const SizedBox(height: 8),
         Text(
-          'Personaliza el color que identifica las acciones principales de tu horario.',
+          'Se usa en botones, pestañas y nuevas materias.',
           style: TextStyle(
             color: Theme.of(context).colorScheme.onSurface
                 .withValues(alpha: 0.6),
+            fontSize: 13,
           ),
         ),
-        const SizedBox(height: 24),
-        Container(
-          padding: const EdgeInsets.all(20),
-          decoration: BoxDecoration(
-            color: Theme.of(context).colorScheme.surface,
-            borderRadius: BorderRadius.circular(18),
-            border: Border.all(color: Colors.white.withValues(alpha: 0.07)),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Modo de pantalla',
-                style: Theme.of(context).textTheme.titleMedium
-                    ?.copyWith(fontWeight: FontWeight.w800),
-              ),
-              const SizedBox(height: 12),
-              SizedBox(
-                width: double.infinity,
-                child: SegmentedButton<ThemeMode>(
-                  segments: const [
-                    ButtonSegment(
-                      value: ThemeMode.light,
-                      icon: Icon(Icons.light_mode_outlined),
-                      label: Text('Claro'),
-                    ),
-                    ButtonSegment(
-                      value: ThemeMode.dark,
-                      icon: Icon(Icons.dark_mode_outlined),
-                      label: Text('Oscuro'),
-                    ),
-                  ],
-                  selected: {_themeMode},
-                  onSelectionChanged: (selection) async {
-                    final mode = selection.first;
-                    setState(() {
-                      _themeMode = mode;
-                    });
-                    await widget.onThemeModeChanged(mode);
-                  },
-                ),
-              ),
-            ],
-          ),
+        const SizedBox(height: 14),
+        Text('Colores claros', style: Theme.of(context).textTheme.labelLarge),
+        const SizedBox(height: 10),
+        Wrap(
+          spacing: 14,
+          runSpacing: 14,
+          children: colorSwatches(lightColorOptions),
         ),
-        const SizedBox(height: 16),
-        Container(
-          padding: const EdgeInsets.all(20),
-          decoration: BoxDecoration(
-            color: Theme.of(context).colorScheme.surface,
-            borderRadius: BorderRadius.circular(18),
-            border: Border.all(color: Colors.white.withValues(alpha: 0.07)),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Datos del usuario',
-                style: Theme.of(context).textTheme.titleMedium
-                    ?.copyWith(fontWeight: FontWeight.w800),
+        const SizedBox(height: 14),
+        Text('Colores oscuros', style: Theme.of(context).textTheme.labelLarge),
+        const SizedBox(height: 10),
+        Wrap(
+          spacing: 14,
+          runSpacing: 14,
+          children: colorSwatches(darkColorOptions),
+        ),
+        const SizedBox(height: 28),
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Opciones de semana',
+              style: Theme.of(context).textTheme.titleMedium
+                  ?.copyWith(fontWeight: FontWeight.w800),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              'Ajusta los días que quieres ver en tu horario.',
+              style: TextStyle(
+                color: Theme.of(context).colorScheme.onSurface
+                    .withValues(alpha: 0.6),
+                fontSize: 13,
               ),
-              const SizedBox(height: 14),
-              TextField(
-                controller: _nameController,
-                decoration: _fieldDecoration(
-                  'Nombre',
-                  Icons.person_outline_rounded,
-                ),
+            ),
+            const SizedBox(height: 8),
+            SwitchListTile.adaptive(
+              contentPadding: EdgeInsets.zero,
+              title: const Text('Mostrar sábado y domingo'),
+              value: _showWeekend,
+              onChanged: (value) async {
+                setState(() => _showWeekend = value);
+                await widget.onWeekSettingsChanged(showWeekend: value);
+              },
+            ),
+            const SizedBox(height: 8),
+            DropdownButtonFormField<int>(
+              initialValue: _weekStart,
+              decoration: _fieldDecoration(
+                'Comenzar la semana en',
+                LucideIcons.calendarRange,
               ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: _detailController,
-                decoration: _fieldDecoration(
-                  'Carrera, grupo o descripción',
-                  Icons.school_outlined,
-                ),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: _imageController,
-                keyboardType: TextInputType.url,
-                onChanged: (_) {
-                  if (_imageBytes != null) {
-                    setState(() => _imageBytes = null);
-                  }
-                },
-                decoration: _fieldDecoration(
-                  'URL de imagen para el menú',
-                  Icons.image_outlined,
-                ).copyWith(hintText: 'https://ejemplo.com/imagen.jpg'),
-              ),
-              const SizedBox(height: 10),
-              OutlinedButton.icon(
-                onPressed: _pickHeaderImage,
-                icon: const Icon(Icons.upload_file_rounded),
-                label: const Text('Elegir imagen del dispositivo'),
-              ),
-              Material(
-                color: Colors.transparent,
-                child: SwitchListTile.adaptive(
-                  contentPadding: EdgeInsets.zero,
-                  title: const Text('Usar imagen en el menú'),
-                  subtitle: const Text(
-                    'Si está apagado, se usará el color principal',
+              items: const [
+                DropdownMenuItem(value: 1, child: Text('Lunes')),
+                DropdownMenuItem(value: 2, child: Text('Martes')),
+                DropdownMenuItem(value: 3, child: Text('Miércoles')),
+                DropdownMenuItem(value: 4, child: Text('Jueves')),
+                DropdownMenuItem(value: 5, child: Text('Viernes')),
+                DropdownMenuItem(value: 6, child: Text('Sábado')),
+                DropdownMenuItem(value: 0, child: Text('Domingo')),
+              ],
+              onChanged: (value) async {
+                if (value == null) return;
+                setState(() => _weekStart = value);
+                await widget.onWeekSettingsChanged(weekStart: value);
+              },
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'Formato de los días',
+              style: Theme.of(context).textTheme.labelLarge,
+            ),
+            const SizedBox(height: 8),
+            SizedBox(
+              width: double.infinity,
+              child: SegmentedButton<DayLabelFormat>(
+                segments: const [
+                  ButtonSegment(
+                    value: DayLabelFormat.full,
+                    label: Text('Todo'),
                   ),
-                  value: _useImage,
-                  onChanged: (value) => setState(() => _useImage = value),
-                ),
-              ),
-              const SizedBox(height: 8),
-              SizedBox(
-                width: double.infinity,
-                child: FilledButton.icon(
-                  onPressed: _saveProfile,
-                  icon: const Icon(Icons.save_outlined),
-                  label: const Text('Guardar datos'),
-                ),
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 16),
-        Container(
-          padding: const EdgeInsets.all(20),
-          decoration: BoxDecoration(
-            color: Theme.of(context).colorScheme.surface,
-            borderRadius: BorderRadius.circular(18),
-            border: Border.all(color: Colors.white.withValues(alpha: 0.07)),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Icon(Icons.palette_outlined, color: primaryColor),
-                  const SizedBox(width: 10),
-                  const Text(
-                    'Color principal',
-                    style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800),
+                  ButtonSegment(
+                    value: DayLabelFormat.short,
+                    label: Text('3 letras'),
+                  ),
+                  ButtonSegment(
+                    value: DayLabelFormat.initial,
+                    label: Text('Inicial'),
                   ),
                 ],
+                selected: {_dayLabelFormat},
+                onSelectionChanged: (selection) async {
+                  final format = selection.first;
+                  setState(() => _dayLabelFormat = format);
+                  await widget.onWeekSettingsChanged(labelFormat: format);
+                },
               ),
-              const SizedBox(height: 8),
-              Text(
-                'Se usa en el día activo, botones, pestañas y nuevas materias.',
-                style: TextStyle(
-                  color: Theme.of(context).colorScheme.onSurface
-                      .withValues(alpha: 0.54),
-                  fontSize: 13,
-                ),
-              ),
-              const SizedBox(height: 22),
-              Wrap(
-                spacing: 14,
-                runSpacing: 14,
-                children: primaryColorOptions.map((color) {
-                  final isSelected =
-                      selectedPrimaryColor.toARGB32() == color.toARGB32();
-                  final defaultBorderColor = widget.themeMode == ThemeMode.light
-                      ? Colors.black38
-                      : Colors.white24;
-                  return Semantics(
-                    label: 'Seleccionar color principal',
-                    selected: isSelected,
-                    button: true,
-                    child: InkWell(
-                      onTap: () => widget.onColorChanged(color),
-                      borderRadius: BorderRadius.circular(24),
-                      child: Container(
-                        width: 44,
-                        height: 44,
-                        decoration: BoxDecoration(
-                          color: color,
-                          shape: BoxShape.circle,
-                          border: Border.all(
-                            color: isSelected
-                                ? Theme.of(context).colorScheme.onSurface
-                                : defaultBorderColor,
-                            width: isSelected ? 2.5 : 1,
-                          ),
-                          boxShadow: isSelected
-                              ? [
-                                  BoxShadow(
-                                    color: color.withValues(alpha: 0.45),
-                                    blurRadius: 10,
-                                  ),
-                                ]
-                              : null,
-                        ),
-                        child: isSelected
-                            ? Container(
-                                width: 25,
-                                height: 25,
-                                decoration: BoxDecoration(
-                                  color: _defaultTextColor(color),
-                                  shape: BoxShape.circle,
-                                ),
-                                child: Icon(
-                                  Icons.check_rounded,
-                                  size: 18,
-                                  color: color,
-                                ),
-                              )
-                            : null,
-                      ),
-                    ),
-                  );
-                }).toList(),
-              ),
-              const SizedBox(height: 24),
-              Container(
-                padding: const EdgeInsets.all(14),
-                decoration: BoxDecoration(
-                  color: primaryColor.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(
-                    color: primaryColor.withValues(alpha: 0.35),
+            ),
+            const SizedBox(height: 18),
+            Text('Vista previa', style: Theme.of(context).textTheme.labelLarge),
+            const SizedBox(height: 10),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: _previewDays.map((day) {
+                final isWednesday = day == 'Miércoles';
+                return Chip(
+                  avatar: Icon(
+                    isWednesday ? LucideIcons.badgeX : LucideIcons.calendar,
+                    size: 16,
                   ),
-                ),
-                child: Row(
-                  children: [
-                    Icon(Icons.visibility_outlined, color: primaryColor),
-                    const SizedBox(width: 10),
-                    const Expanded(
-                      child: Text(
-                        'Vista previa del color activo',
-                        style: TextStyle(fontWeight: FontWeight.w600),
-                      ),
-                    ),
-                    Icon(Icons.check_circle_rounded, color: primaryColor),
-                  ],
-                ),
-              ),
-            ],
+                  label: Text(_previewLabel(day)),
+                  side: BorderSide.none,
+                  backgroundColor: primaryColor.withValues(alpha: 0.12),
+                  labelStyle: TextStyle(
+                    color: Theme.of(context).colorScheme.onSurface,
+                    fontWeight: FontWeight.w700,
+                  ),
+                );
+              }).toList(),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+}
+
+class _ProfileSection extends StatefulWidget {
+  final String profileName;
+  final String profileDetail;
+  final bool useHeaderImage;
+  final Uint8List? headerImageBytes;
+  final Color primaryColor;
+  final ThemeMode themeMode;
+  final Future<void> Function({
+    required String name,
+    required String detail,
+    required String imageUrl,
+    required bool useImage,
+    required Uint8List? imageBytes,
+    required Color menuTextColor,
+  })
+  onProfileChanged;
+
+  const _ProfileSection({
+    required this.profileName,
+    required this.profileDetail,
+    required this.useHeaderImage,
+    required this.headerImageBytes,
+    required this.primaryColor,
+    required this.themeMode,
+    required this.onProfileChanged,
+  });
+
+  @override
+  State<_ProfileSection> createState() => _ProfileSectionState();
+}
+
+class _ProfileSectionState extends State<_ProfileSection> {
+  late final TextEditingController _nameController;
+  late final TextEditingController _detailController;
+  late bool _useImage;
+  Uint8List? _imageBytes;
+
+  @override
+  void initState() {
+    super.initState();
+    _nameController = TextEditingController(text: widget.profileName);
+    _detailController = TextEditingController(text: widget.profileDetail);
+    _useImage = widget.useHeaderImage;
+    _imageBytes = widget.headerImageBytes;
+  }
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _detailController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _pickHeaderImage() async {
+    final pickedFile = await ImagePicker().pickImage(
+      source: ImageSource.gallery,
+    );
+    if (pickedFile == null) return;
+
+    final bytes = await pickedFile.readAsBytes();
+    if (!mounted) return;
+    setState(() {
+      _imageBytes = bytes;
+      _useImage = true;
+    });
+    await _autoSave();
+  }
+
+  Future<void> _removeImage() async {
+    setState(() {
+      _imageBytes = null;
+      _useImage = false;
+    });
+    await _autoSave();
+  }
+
+  Future<void> _autoSave() async {
+    final brightness = widget.themeMode == ThemeMode.light
+        ? Brightness.light
+        : Brightness.dark;
+    final menuBackground = _menuBackgroundForPrimary(
+      widget.primaryColor,
+      brightness,
+    );
+    await widget.onProfileChanged(
+      name: _nameController.text,
+      detail: _detailController.text,
+      imageUrl: '',
+      useImage: _useImage,
+      imageBytes: _imageBytes,
+      menuTextColor: _defaultTextColor(menuBackground),
+    );
+  }
+
+  InputDecoration _fieldDecoration(String label, IconData icon) {
+    final borderColor = Theme.of(context).brightness == Brightness.light
+        ? Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.12)
+        : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.12);
+    final fill = Theme.of(context).brightness == Brightness.light
+        ? Colors.white.withValues(alpha: 0.05)
+        : Colors.white.withValues(alpha: 0.02);
+    return InputDecoration(
+      labelText: label,
+      prefixIcon: Icon(icon),
+      filled: true,
+      fillColor: fill,
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: BorderSide(color: borderColor, width: 1),
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: BorderSide(color: borderColor, width: 1),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: BorderSide(
+          color: Theme.of(context).colorScheme.primary,
+          width: 2,
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(20, 24, 20, 32),
+      children: [
+        Text(
+          'Datos del usuario',
+          style: Theme.of(context).textTheme.titleMedium
+              ?.copyWith(fontWeight: FontWeight.w800),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          'Personaliza tu experiencia con tu información.',
+          style: TextStyle(
+            color: Theme.of(context).colorScheme.onSurface
+                .withValues(alpha: 0.6),
+            fontSize: 13,
           ),
+        ),
+        const SizedBox(height: 22),
+        TextField(
+          controller: _nameController,
+          decoration: _fieldDecoration('Nombre', LucideIcons.user),
+          onChanged: (_) => _autoSave(),
+        ),
+        const SizedBox(height: 22),
+        TextField(
+          controller: _detailController,
+          decoration: _fieldDecoration(
+            'Carrera, grupo o descripción',
+            LucideIcons.graduationCap,
+          ),
+          onChanged: (_) => _autoSave(),
+        ),
+        const SizedBox(height: 18),
+        if (_imageBytes != null) ...[
+          Container(
+            height: 200,
+            width: double.infinity,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(14),
+              image: DecorationImage(
+                image: MemoryImage(_imageBytes!),
+                fit: BoxFit.cover,
+              ),
+            ),
+          ),
+          const SizedBox(height: 12),
+          OutlinedButton.icon(
+            onPressed: _removeImage,
+            style: OutlinedButton.styleFrom(
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(14),
+              ),
+              minimumSize: const Size.fromHeight(48),
+              foregroundColor: Colors.red,
+            ),
+            icon: const Icon(LucideIcons.trash2),
+            label: const Text('Eliminar imagen'),
+          ),
+          const SizedBox(height: 12),
+        ],
+        OutlinedButton.icon(
+          onPressed: _pickHeaderImage,
+          style: OutlinedButton.styleFrom(
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(14),
+            ),
+            minimumSize: const Size.fromHeight(58),
+          ),
+          icon: const Icon(LucideIcons.upload),
+          label: const Text('Elegir imagen del dispositivo'),
+        ),
+      ],
+    );
+  }
+}
+
+class _NotificationsSection extends StatefulWidget {
+  final bool notificationsEnabled;
+  final Future<void> Function(bool enabled) onNotificationsChanged;
+
+  const _NotificationsSection({
+    required this.notificationsEnabled,
+    required this.onNotificationsChanged,
+  });
+
+  @override
+  State<_NotificationsSection> createState() => _NotificationsSectionState();
+}
+
+class _NotificationsSectionState extends State<_NotificationsSection> {
+  late bool _notificationsEnabled;
+  late int _notificationMinutes;
+
+  final List<int> _notificationOptions = [5, 10, 15, 20];
+
+  @override
+  void initState() {
+    super.initState();
+    _notificationsEnabled = widget.notificationsEnabled;
+    _notificationMinutes = 15;
+  }
+
+  Future<void> _toggleNotifications(bool value) async {
+    setState(() => _notificationsEnabled = value);
+    await widget.onNotificationsChanged(value);
+  }
+
+  InputDecoration _fieldDecoration(String label, IconData icon) {
+    final borderColor = Theme.of(context).brightness == Brightness.light
+        ? Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.12)
+        : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.12);
+    final fill = Theme.of(context).brightness == Brightness.light
+        ? Colors.white.withValues(alpha: 0.05)
+        : Colors.white.withValues(alpha: 0.02);
+    return InputDecoration(
+      labelText: label,
+      prefixIcon: Icon(icon),
+      filled: true,
+      fillColor: fill,
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: BorderSide(color: borderColor, width: 1),
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: BorderSide(color: borderColor, width: 1),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: BorderSide(
+          color: Theme.of(context).colorScheme.primary,
+          width: 2,
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(20, 24, 20, 32),
+      children: [
+        Text(
+          'Notificaciones',
+          style: Theme.of(context).textTheme.titleMedium
+              ?.copyWith(fontWeight: FontWeight.w800),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          'Configura recordatorios para tus clases.',
+          style: TextStyle(
+            color: Theme.of(context).colorScheme.onSurface
+                .withValues(alpha: 0.6),
+            fontSize: 13,
+          ),
+        ),
+        const SizedBox(height: 22),
+        Material(
+          color: Colors.transparent,
+          child: SwitchListTile.adaptive(
+            contentPadding: EdgeInsets.zero,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(14),
+            ),
+            title: const Text('Activar notificaciones'),
+            subtitle: const Text('Recibe recordatorios antes de cada clase'),
+            value: _notificationsEnabled,
+            onChanged: _toggleNotifications,
+          ),
+        ),
+        const SizedBox(height: 22),
+        Text(
+          'Tiempo de aviso',
+          style: Theme.of(context).textTheme.titleMedium
+              ?.copyWith(fontWeight: FontWeight.w800),
+        ),
+        const SizedBox(height: 14),
+        DropdownButtonFormField<int>(
+          value: _notificationMinutes,
+          decoration: _fieldDecoration(
+            'Minutos antes de la clase',
+            LucideIcons.clock,
+          ),
+          items: _notificationOptions.map((minutes) {
+            return DropdownMenuItem<int>(
+              value: minutes,
+              child: Text('$minutes minutos'),
+            );
+          }).toList(),
+          onChanged: _notificationsEnabled
+              ? (value) {
+                  if (value != null) {
+                    setState(() => _notificationMinutes = value);
+                  }
+                }
+              : null,
         ),
       ],
     );
@@ -1692,6 +2037,7 @@ class _DaySchedule extends StatelessWidget {
 class _ScheduleTab extends StatefulWidget {
   final TabController tabController;
   final List<String> days;
+  final List<int> dayIndices;
   final List<List<Clase>> classesByDay;
   final int selectedDay;
   final Function(int) onSelectedDayChanged;
@@ -1701,6 +2047,7 @@ class _ScheduleTab extends StatefulWidget {
   const _ScheduleTab({
     required this.tabController,
     required this.days,
+    required this.dayIndices,
     required this.classesByDay,
     required this.selectedDay,
     required this.onSelectedDayChanged,
@@ -1731,32 +2078,37 @@ class _ScheduleTabState extends State<_ScheduleTab> {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      children: [
-        _DayTabs(
-          controller: widget.tabController,
-          days: widget.days,
-          classCounts: widget.classesByDay
-              .map((classes) => classes.length)
-              .toList(),
-        ),
-        const SizedBox(height: 12),
-        Expanded(
-          child: TabBarView(
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: Theme.of(context).scaffoldBackgroundColor,
+      ),
+      child: Column(
+        children: [
+          _DayTabs(
             controller: widget.tabController,
-            children: List.generate(
-              widget.days.length,
-              (dayIndex) => _DaySchedule(
-                day: widget.days[dayIndex].toLowerCase(),
-                classes: widget.classesByDay[dayIndex],
-                dayIndex: dayIndex,
-                onDeleteClass: widget.onDeleteClass,
-                onEditClass: widget.onEditClass,
+            days: widget.days,
+            classCounts: widget.classesByDay
+                .map((classes) => classes.length)
+                .toList(),
+          ),
+          const SizedBox(height: 12),
+          Expanded(
+            child: TabBarView(
+              controller: widget.tabController,
+              children: List.generate(
+                widget.days.length,
+                (dayIndex) => _DaySchedule(
+                  day: widget.days[dayIndex].toLowerCase(),
+                  classes: widget.classesByDay[widget.dayIndices[dayIndex]],
+                  dayIndex: widget.dayIndices[dayIndex],
+                  onDeleteClass: widget.onDeleteClass,
+                  onEditClass: widget.onEditClass,
+                ),
               ),
             ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 }
@@ -1783,11 +2135,7 @@ class _MateriasGuardadasTab extends StatelessWidget {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(
-                Icons.bookmark_outline_rounded,
-                size: 48,
-                color: Colors.white24,
-              ),
+              Icon(LucideIcons.bookmark, size: 48, color: Colors.white24),
               const SizedBox(height: 16),
               Text(
                 'Sin materias guardadas',
@@ -1849,7 +2197,6 @@ class _AddClassSheetState extends State<_AddClassSheet> {
   final _nrcController = TextEditingController();
   final _startController = TextEditingController(text: '08:00');
   final _endController = TextEditingController(text: '09:00');
-  late int _selectedDay = widget.initialDay;
   MateriaGuardada? _selectedMateria;
 
   @override
@@ -1889,14 +2236,14 @@ class _AddClassSheetState extends State<_AddClassSheet> {
   }
 
   void _save() {
-    if (!_formKey.currentState!.validate()) return;
+    if (!(_formKey.currentState?.validate() ?? false)) return;
 
     final subject = _subjectController.text.trim();
     final color =
         _selectedMateria?.color ?? Theme.of(context).colorScheme.primary;
 
     widget.onSave(
-      _selectedDay,
+      widget.initialDay,
       Clase(
         materia: subject,
         profesor: _teacherController.text.trim(),
@@ -1975,7 +2322,7 @@ class _AddClassSheetState extends State<_AddClassSheet> {
                     IconButton(
                       onPressed: () => Navigator.pop(context),
                       tooltip: 'Cerrar',
-                      icon: const Icon(Icons.close_rounded),
+                      icon: const Icon(LucideIcons.x),
                     ),
                   ],
                 ),
@@ -2005,7 +2352,7 @@ class _AddClassSheetState extends State<_AddClassSheet> {
                         Row(
                           children: [
                             Icon(
-                              Icons.bookmark_rounded,
+                              LucideIcons.bookmark,
                               size: 18,
                               color: const Color(0xFF53D1B6),
                             ),
@@ -2121,7 +2468,7 @@ class _AddClassSheetState extends State<_AddClassSheet> {
                                               right: 12,
                                             ),
                                             child: Icon(
-                                              Icons.check_circle_rounded,
+                                              LucideIcons.circleCheck,
                                               color: accentColor,
                                               size: 22,
                                             ),
@@ -2137,51 +2484,8 @@ class _AddClassSheetState extends State<_AddClassSheet> {
                       ],
                     ),
                   ),
-                  const SizedBox(height: 20),
+                  const SizedBox(height: 14),
                 ],
-                DropdownButtonFormField<int>(
-                  initialValue: _selectedDay,
-                  decoration: _fieldDecoration('Día', Icons.today_rounded),
-                  dropdownColor: Theme.of(context).colorScheme.surface,
-                  style: TextStyle(
-                    color: Theme.of(context).colorScheme.onSurface,
-                  ),
-                  items: List.generate(
-                    widget.days.length,
-                    (index) => DropdownMenuItem(
-                      value: index,
-                      child: Text(widget.days[index]),
-                    ),
-                  ),
-                  onChanged: (value) {
-                    if (value != null) setState(() => _selectedDay = value);
-                  },
-                ),
-                const SizedBox(height: 16),
-                TextFormField(
-                  controller: _subjectController,
-                  textInputAction: TextInputAction.next,
-                  decoration: _fieldDecoration(
-                    'Materia',
-                    Icons.menu_book_rounded,
-                  ),
-                  validator: (value) => value == null || value.trim().isEmpty
-                      ? 'Escribe el nombre de la materia'
-                      : null,
-                ),
-                const SizedBox(height: 16),
-                TextFormField(
-                  controller: _teacherController,
-                  textInputAction: TextInputAction.next,
-                  decoration: _fieldDecoration(
-                    'Profesor',
-                    Icons.person_outline_rounded,
-                  ),
-                  validator: (value) => value == null || value.trim().isEmpty
-                      ? 'Escribe el nombre del profesor'
-                      : null,
-                ),
-                const SizedBox(height: 20),
                 Container(
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
@@ -2197,7 +2501,67 @@ class _AddClassSheetState extends State<_AddClassSheet> {
                       Row(
                         children: [
                           Icon(
-                            Icons.location_on_outlined,
+                            LucideIcons.bookOpen,
+                            size: 18,
+                            color: const Color(0xFF53D1B6),
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            'Información de la clase',
+                            style: Theme.of(context).textTheme.titleSmall
+                                ?.copyWith(
+                                  fontWeight: FontWeight.w600,
+                                  color: const Color(0xFF53D1B6),
+                                ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      TextFormField(
+                        controller: _subjectController,
+                        textInputAction: TextInputAction.next,
+                        decoration: _fieldDecoration(
+                          'Materia',
+                          LucideIcons.bookOpen,
+                        ),
+                        validator: (value) =>
+                            value == null || value.trim().isEmpty
+                            ? 'Escribe el nombre de la materia'
+                            : null,
+                      ),
+                      const SizedBox(height: 12),
+                      TextFormField(
+                        controller: _teacherController,
+                        textInputAction: TextInputAction.next,
+                        decoration: _fieldDecoration(
+                          'Profesor',
+                          LucideIcons.user,
+                        ),
+                        validator: (value) =>
+                            value == null || value.trim().isEmpty
+                            ? 'Escribe el nombre del profesor'
+                            : null,
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 14),
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.03),
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(
+                      color: Colors.white.withValues(alpha: 0.08),
+                    ),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Icon(
+                            LucideIcons.mapPin,
                             size: 18,
                             color: const Color(0xFF53D1B6),
                           ),
@@ -2221,7 +2585,7 @@ class _AddClassSheetState extends State<_AddClassSheet> {
                               textInputAction: TextInputAction.next,
                               decoration: _fieldDecoration(
                                 'Aula',
-                                Icons.room_outlined,
+                                LucideIcons.doorOpen,
                               ),
                               validator: (value) =>
                                   value == null || value.trim().isEmpty
@@ -2240,7 +2604,7 @@ class _AddClassSheetState extends State<_AddClassSheet> {
                               ],
                               decoration: _fieldDecoration(
                                 'NRC',
-                                Icons.tag_rounded,
+                                LucideIcons.tag,
                               ),
                             ),
                           ),
@@ -2252,13 +2616,13 @@ class _AddClassSheetState extends State<_AddClassSheet> {
                         textInputAction: TextInputAction.next,
                         decoration: _fieldDecoration(
                           'Edificio',
-                          Icons.business_outlined,
+                          LucideIcons.building2,
                         ),
                       ),
                     ],
                   ),
                 ),
-                const SizedBox(height: 20),
+                const SizedBox(height: 14),
                 Container(
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
@@ -2274,7 +2638,7 @@ class _AddClassSheetState extends State<_AddClassSheet> {
                       Row(
                         children: [
                           Icon(
-                            Icons.access_time_rounded,
+                            LucideIcons.clock,
                             size: 18,
                             color: const Color(0xFF53D1B6),
                           ),
@@ -2299,7 +2663,7 @@ class _AddClassSheetState extends State<_AddClassSheet> {
                               inputFormatters: [_TimeInputFormatter()],
                               decoration: _fieldDecoration(
                                 'Hora inicio',
-                                Icons.schedule_rounded,
+                                LucideIcons.clock3,
                               ),
                             ),
                           ),
@@ -2311,7 +2675,7 @@ class _AddClassSheetState extends State<_AddClassSheet> {
                               inputFormatters: [_TimeInputFormatter()],
                               decoration: _fieldDecoration(
                                 'Hora fin',
-                                Icons.schedule_outlined,
+                                LucideIcons.clock3,
                               ),
                             ),
                           ),
@@ -2320,13 +2684,13 @@ class _AddClassSheetState extends State<_AddClassSheet> {
                     ],
                   ),
                 ),
-                const SizedBox(height: 24),
+                const SizedBox(height: 14),
                 SizedBox(
                   width: double.infinity,
-                  height: 54,
+                  height: 48,
                   child: FilledButton.icon(
                     onPressed: _save,
-                    icon: const Icon(Icons.add_rounded, size: 20),
+                    icon: const Icon(LucideIcons.plus, size: 20),
                     label: const Text(
                       'Agregar al horario',
                       style: TextStyle(
@@ -2367,7 +2731,7 @@ class _EmptyDay extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             Icon(
-              Icons.weekend_outlined,
+              LucideIcons.calendarOff,
               size: 48,
               color: Theme.of(context).colorScheme.onSurface
                   .withValues(alpha: 0.24),
@@ -2389,19 +2753,20 @@ class _EmptyDay extends StatelessWidget {
   }
 }
 
-// Widget reutilizable para cada tarjeta de clase
+// Widget universal reutilizable para clases programadas y materias guardadas
 class ClaseCard extends StatelessWidget {
   final String materia;
   final String profesor;
   final String nrc;
   final String edificio;
   final String aula;
-  final String horaInicio;
-  final String horaFin;
+  final String? horaInicio; // Opcional
+  final String? horaFin; // Opcional
   final String letraInicial;
   final Color color;
   final VoidCallback onDelete;
   final VoidCallback onEdit;
+  final VoidCallback? onAddToSchedule; // Opcional para las materias guardadas
 
   const ClaseCard({
     super.key,
@@ -2410,12 +2775,13 @@ class ClaseCard extends StatelessWidget {
     required this.nrc,
     required this.edificio,
     required this.aula,
-    required this.horaInicio,
-    required this.horaFin,
+    this.horaInicio,
+    this.horaFin,
     required this.letraInicial,
     required this.color,
     required this.onDelete,
     required this.onEdit,
+    this.onAddToSchedule,
   });
 
   @override
@@ -2424,52 +2790,64 @@ class ClaseCard extends StatelessWidget {
     final accentColor = _materiaColorForTheme(color, brightness);
     final surfaceColor = _cardColorForTheme(color, brightness);
     final cardTextColor = _defaultTextColor(surfaceColor);
-    final borderColor = Theme.of(context).brightness == Brightness.light
-        ? Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.12)
-        : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.08);
+
     return InkWell(
       onTap: () {
         showModalBottomSheet(
           context: context,
           backgroundColor: Theme.of(context).colorScheme.surface,
           builder: (context) => SafeArea(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                ListTile(
-                  leading: const Icon(
-                    Icons.edit_outlined,
-                    color: Color(0xFF53D1B6),
+            child: Material(
+              color: Theme.of(context).colorScheme.surface,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  ListTile(
+                    leading: const Icon(
+                      LucideIcons.pencil,
+                      color: Color(0xFF53D1B6),
+                    ),
+                    title: const Text('Editar'),
+                    onTap: () {
+                      Navigator.pop(context);
+                      onEdit();
+                    },
                   ),
-                  title: const Text('Editar'),
-                  onTap: () {
-                    Navigator.pop(context);
-                    onEdit();
-                  },
-                ),
-                ListTile(
-                  leading: const Icon(
-                    Icons.delete_outline_rounded,
-                    color: Colors.red,
+                  // Solo se muestra si la tarjeta actúa como MateriaGuardada
+                  if (onAddToSchedule != null)
+                    ListTile(
+                      leading: const Icon(
+                        LucideIcons.circlePlus,
+                        color: Color(0xFF53D1B6),
+                      ),
+                      title: const Text('Agregar al horario'),
+                      onTap: () {
+                        Navigator.pop(context);
+                        onAddToSchedule!();
+                      },
+                    ),
+                  ListTile(
+                    leading: const Icon(LucideIcons.trash2, color: Colors.red),
+                    title: const Text('Eliminar'),
+                    onTap: () {
+                      Navigator.pop(context);
+                      onDelete();
+                    },
                   ),
-                  title: const Text('Eliminar'),
-                  onTap: () {
-                    Navigator.pop(context);
-                    onDelete();
-                  },
-                ),
-              ],
+                ],
+              ),
             ),
           ),
         );
       },
       borderRadius: BorderRadius.circular(18),
       child: Container(
-        decoration: BoxDecoration(
-          color: surfaceColor,
-          borderRadius: BorderRadius.circular(18),
+        decoration: _scheduleCardDecoration(
+          context,
+          backgroundColor: surfaceColor,
+          accentColor: accentColor,
         ),
-        padding: const EdgeInsets.all(12),
+        padding: const EdgeInsets.all(16),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -2481,7 +2859,7 @@ class ClaseCard extends StatelessWidget {
                   child: Text(
                     letraInicial,
                     style: TextStyle(
-                      color: accentColor.computeLuminance() > 0.5
+                      color: Brightness.light == brightness
                           ? Colors.black
                           : Colors.white,
                       fontSize: 22,
@@ -2489,26 +2867,29 @@ class ClaseCard extends StatelessWidget {
                     ),
                   ),
                 ),
-                const SizedBox(height: 8),
-                Text(
-                  horaInicio,
-                  style: TextStyle(
-                    color: cardTextColor,
-                    fontWeight: FontWeight.w800,
-                    fontSize: 16,
+                // Renderizado condicional para los horarios
+                if (horaInicio != null && horaFin != null) ...[
+                  const SizedBox(height: 8),
+                  Text(
+                    horaInicio!,
+                    style: TextStyle(
+                      color: cardTextColor,
+                      fontWeight: FontWeight.w800,
+                      fontSize: 16,
+                    ),
                   ),
-                ),
-                const SizedBox(height: 3),
-                Text(
-                  horaFin,
-                  style: TextStyle(
-                    color: cardTextColor.withValues(alpha: 0.62),
-                    fontSize: 14,
+                  const SizedBox(height: 3),
+                  Text(
+                    horaFin!,
+                    style: TextStyle(
+                      color: cardTextColor.withValues(alpha: 0.62),
+                      fontSize: 14,
+                    ),
                   ),
-                ),
+                ],
               ],
             ),
-            const SizedBox(width: 12),
+            const SizedBox(width: 14),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -2539,12 +2920,12 @@ class ClaseCard extends StatelessWidget {
                     runSpacing: 6,
                     children: [
                       _InfoChip(
-                        icon: Icons.location_on_outlined,
+                        icon: LucideIcons.mapPin,
                         label: aula,
                         color: cardTextColor,
                       ),
                       _InfoChip(
-                        icon: Icons.confirmation_number_outlined,
+                        icon: LucideIcons.badge,
                         label: 'NRC $nrc',
                         color: cardTextColor,
                       ),
@@ -2656,7 +3037,7 @@ class _SaveMateriaSheetState extends State<_SaveMateriaSheet> {
   }
 
   void _save() {
-    if (!_formKey.currentState!.validate()) return;
+    if (!(_formKey.currentState?.validate() ?? false)) return;
 
     widget.onSave(
       MateriaGuardada(
@@ -2736,7 +3117,7 @@ class _SaveMateriaSheetState extends State<_SaveMateriaSheet> {
                     IconButton(
                       onPressed: () => Navigator.pop(context),
                       tooltip: 'Cerrar',
-                      icon: const Icon(Icons.close_rounded),
+                      icon: const Icon(LucideIcons.x),
                     ),
                   ],
                 ),
@@ -2748,14 +3129,11 @@ class _SaveMateriaSheetState extends State<_SaveMateriaSheet> {
                         .withValues(alpha: 0.6),
                   ),
                 ),
-                const SizedBox(height: 20),
+                const SizedBox(height: 14),
                 TextFormField(
                   controller: _subjectController,
                   textInputAction: TextInputAction.next,
-                  decoration: _fieldDecoration(
-                    'Materia',
-                    Icons.menu_book_rounded,
-                  ),
+                  decoration: _fieldDecoration('Materia', LucideIcons.bookOpen),
                   validator: (value) => value == null || value.trim().isEmpty
                       ? 'Escribe el nombre de la materia'
                       : null,
@@ -2764,10 +3142,7 @@ class _SaveMateriaSheetState extends State<_SaveMateriaSheet> {
                 TextFormField(
                   controller: _teacherController,
                   textInputAction: TextInputAction.next,
-                  decoration: _fieldDecoration(
-                    'Profesor',
-                    Icons.person_outline_rounded,
-                  ),
+                  decoration: _fieldDecoration('Profesor', LucideIcons.user),
                   validator: (value) => value == null || value.trim().isEmpty
                       ? 'Escribe el nombre del profesor'
                       : null,
@@ -2781,7 +3156,7 @@ class _SaveMateriaSheetState extends State<_SaveMateriaSheet> {
                         textInputAction: TextInputAction.next,
                         decoration: _fieldDecoration(
                           'Aula',
-                          Icons.room_outlined,
+                          LucideIcons.doorOpen,
                         ),
                         validator: (value) =>
                             value == null || value.trim().isEmpty
@@ -2794,7 +3169,7 @@ class _SaveMateriaSheetState extends State<_SaveMateriaSheet> {
                       child: TextFormField(
                         controller: _nrcController,
                         textInputAction: TextInputAction.next,
-                        decoration: _fieldDecoration('NRC', Icons.tag_rounded),
+                        decoration: _fieldDecoration('NRC', LucideIcons.tag),
                       ),
                     ),
                   ],
@@ -2805,7 +3180,7 @@ class _SaveMateriaSheetState extends State<_SaveMateriaSheet> {
                   textInputAction: TextInputAction.next,
                   decoration: _fieldDecoration(
                     'Edificio',
-                    Icons.business_outlined,
+                    LucideIcons.building2,
                   ),
                 ),
                 Text(
@@ -2843,7 +3218,7 @@ class _SaveMateriaSheetState extends State<_SaveMateriaSheet> {
                             ),
                             child: isSelected
                                 ? const Icon(
-                                    Icons.check,
+                                    LucideIcons.check,
                                     color: Color(0xFF09201D),
                                     size: 28,
                                   )
@@ -2854,12 +3229,12 @@ class _SaveMateriaSheetState extends State<_SaveMateriaSheet> {
                     },
                   ),
                 ),
-                const SizedBox(height: 20),
+                const SizedBox(height: 14),
                 SizedBox(
                   width: double.infinity,
                   child: FilledButton.icon(
                     onPressed: _save,
-                    icon: const Icon(Icons.bookmark_add_rounded),
+                    icon: const Icon(LucideIcons.bookmarkPlus),
                     label: const Text('Guardar materia'),
                     style: FilledButton.styleFrom(
                       padding: const EdgeInsets.symmetric(vertical: 15),
@@ -2905,7 +3280,6 @@ class _EditClassSheetState extends State<_EditClassSheet> {
   late final TextEditingController _nrcController;
   late final TextEditingController _startController;
   late final TextEditingController _endController;
-  late int _selectedDay = widget.initialDay;
   MateriaGuardada? _selectedMateria;
 
   @override
@@ -2952,13 +3326,13 @@ class _EditClassSheetState extends State<_EditClassSheet> {
   }
 
   void _save() {
-    if (!_formKey.currentState!.validate()) return;
+    if (!(_formKey.currentState?.validate() ?? false)) return;
 
     final subject = _subjectController.text.trim();
     final color = _selectedMateria?.color ?? widget.initialClass.color;
 
     widget.onSave(
-      _selectedDay,
+      widget.initialDay,
       Clase(
         materia: subject,
         profesor: _teacherController.text.trim(),
@@ -2983,29 +3357,30 @@ class _EditClassSheetState extends State<_EditClassSheet> {
         ? Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.12)
         : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.12);
     final fill = Theme.of(context).brightness == Brightness.light
-        ? Colors.white.withValues(alpha: 0.05)
+        ? Colors.white.withValues(alpha: 0.06)
         : Colors.white.withValues(alpha: 0.02);
     return InputDecoration(
       labelText: label,
-      prefixIcon: Icon(icon, size: 19),
+      prefixIcon: Icon(icon, size: 20),
       filled: true,
       fillColor: fill,
       border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(14),
         borderSide: BorderSide(color: borderColor, width: 1),
       ),
       enabledBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(14),
         borderSide: BorderSide(color: borderColor, width: 1),
       ),
       focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(14),
         borderSide: BorderSide(
           color: Theme.of(context).colorScheme.primary,
           width: 2,
         ),
       ),
-      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+      labelStyle: const TextStyle(fontSize: 13),
     );
   }
 
@@ -3033,7 +3408,7 @@ class _EditClassSheetState extends State<_EditClassSheet> {
                     IconButton(
                       onPressed: () => Navigator.pop(context),
                       tooltip: 'Cerrar',
-                      icon: const Icon(Icons.close_rounded),
+                      icon: const Icon(LucideIcons.x),
                     ),
                   ],
                 ),
@@ -3045,165 +3420,377 @@ class _EditClassSheetState extends State<_EditClassSheet> {
                         .withValues(alpha: 0.6),
                   ),
                 ),
-                const SizedBox(height: 20),
+                const SizedBox(height: 14),
                 if (widget.materiasGuardadas.isNotEmpty) ...[
-                  Text(
-                    'Materias guardadas',
-                    style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                      fontWeight: FontWeight.w600,
-                      color: const Color(0xFF53D1B6),
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).colorScheme.surface,
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(
+                        color: Theme.of(context).colorScheme.onSurface
+                            .withValues(alpha: 0.12),
+                      ),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Icon(
+                              LucideIcons.bookmark,
+                              size: 18,
+                              color: const Color(0xFF53D1B6),
+                            ),
+                            const SizedBox(width: 8),
+                            Text(
+                              'Materias guardadas',
+                              style: Theme.of(context).textTheme.titleSmall
+                                  ?.copyWith(
+                                    fontWeight: FontWeight.w600,
+                                    color: const Color(0xFF53D1B6),
+                                  ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+                        Column(
+                          children: widget.materiasGuardadas.map((materia) {
+                            final isSelected = _selectedMateria == materia;
+                            final brightness = Theme.of(context).brightness;
+                            final accentColor = _materiaColorForTheme(
+                              materia.color,
+                              brightness,
+                            );
+                            final itemColor = isSelected
+                                ? _cardColorForTheme(materia.color, brightness)
+                                : Theme.of(context).colorScheme.surface;
+                            final itemTextColor = _defaultTextColor(itemColor);
+                            return Padding(
+                              padding: const EdgeInsets.only(bottom: 8),
+                              child: Material(
+                                color: Colors.transparent,
+                                child: InkWell(
+                                  onTap: () => _selectMateria(materia),
+                                  borderRadius: BorderRadius.circular(12),
+                                  child: Container(
+                                    height: 58,
+                                    decoration: BoxDecoration(
+                                      color: itemColor,
+                                      borderRadius: BorderRadius.circular(12),
+                                      border: Border.all(
+                                        color: isSelected
+                                            ? accentColor
+                                            : Theme.of(context)
+                                                  .colorScheme
+                                                  .onSurface
+                                                  .withValues(alpha: 0.12),
+                                        width: isSelected ? 1.5 : 1,
+                                      ),
+                                    ),
+                                    child: Row(
+                                      children: [
+                                        Container(
+                                          width: 5,
+                                          height: double.infinity,
+                                          decoration: BoxDecoration(
+                                            color: materia.color,
+                                            borderRadius:
+                                                const BorderRadius.horizontal(
+                                                  left: Radius.circular(12),
+                                                ),
+                                          ),
+                                        ),
+                                        const SizedBox(width: 12),
+                                        CircleAvatar(
+                                          radius: 17,
+                                          backgroundColor: accentColor,
+                                          child: Text(
+                                            materia.materia
+                                                .substring(0, 1)
+                                                .toUpperCase(),
+                                            style: TextStyle(
+                                              color: _defaultTextColor(
+                                                accentColor,
+                                              ),
+                                              fontWeight: FontWeight.w800,
+                                            ),
+                                          ),
+                                        ),
+                                        const SizedBox(width: 10),
+                                        Expanded(
+                                          child: Column(
+                                            mainAxisAlignment:
+                                                MainAxisAlignment.center,
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.start,
+                                            children: [
+                                              Text(
+                                                materia.materia,
+                                                maxLines: 1,
+                                                overflow: TextOverflow.ellipsis,
+                                                style: TextStyle(
+                                                  fontWeight: FontWeight.w700,
+                                                  color: itemTextColor,
+                                                ),
+                                              ),
+                                              const SizedBox(height: 2),
+                                              Text(
+                                                materia.profesor,
+                                                maxLines: 1,
+                                                overflow: TextOverflow.ellipsis,
+                                                style: TextStyle(
+                                                  color: itemTextColor
+                                                      .withValues(alpha: 0.68),
+                                                  fontSize: 12,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                        if (isSelected)
+                                          Padding(
+                                            padding: const EdgeInsets.only(
+                                              right: 12,
+                                            ),
+                                            child: Icon(
+                                              LucideIcons.check,
+                                              size: 20,
+                                              color: accentColor,
+                                            ),
+                                          ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            );
+                          }).toList(),
+                        ),
+                      ],
                     ),
                   ),
-                  const SizedBox(height: 8),
-                  SizedBox(
-                    height: 50,
-                    child: ListView.builder(
-                      scrollDirection: Axis.horizontal,
-                      itemCount: widget.materiasGuardadas.length,
-                      itemBuilder: (context, index) {
-                        final materia = widget.materiasGuardadas[index];
-                        final isSelected = _selectedMateria == materia;
-                        return Padding(
-                          padding: const EdgeInsets.only(right: 8),
-                          child: FilterChip(
-                            label: Text(materia.materia),
-                            selected: isSelected,
-                            onSelected: (_) => _selectMateria(materia),
-                            selectedColor: materia.color,
-                            checkmarkColor: const Color(0xFF09201D),
-                            labelStyle: TextStyle(
-                              color: isSelected
-                                  ? const Color(0xFF09201D)
-                                  : Colors.white70,
-                              fontSize: 12,
-                            ),
-                            backgroundColor: Colors.white.withValues(
-                              alpha: 0.05,
-                            ),
-                          ),
-                        );
-                      },
-                    ),
-                  ),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 14),
                 ],
-                DropdownButtonFormField<int>(
-                  initialValue: _selectedDay,
-                  decoration: _fieldDecoration('Día', Icons.today_rounded),
-                  items: List.generate(
-                    widget.days.length,
-                    (index) => DropdownMenuItem(
-                      value: index,
-                      child: Text(widget.days[index]),
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.03),
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(
+                      color: Colors.white.withValues(alpha: 0.08),
                     ),
                   ),
-                  onChanged: (value) {
-                    if (value != null) setState(() => _selectedDay = value);
-                  },
-                ),
-                const SizedBox(height: 12),
-                TextFormField(
-                  controller: _subjectController,
-                  textInputAction: TextInputAction.next,
-                  decoration: _fieldDecoration(
-                    'Materia',
-                    Icons.menu_book_rounded,
-                  ),
-                  validator: (value) => value == null || value.trim().isEmpty
-                      ? 'Escribe el nombre de la materia'
-                      : null,
-                ),
-                const SizedBox(height: 12),
-                TextFormField(
-                  controller: _teacherController,
-                  textInputAction: TextInputAction.next,
-                  decoration: _fieldDecoration(
-                    'Profesor',
-                    Icons.person_outline_rounded,
-                  ),
-                  validator: (value) => value == null || value.trim().isEmpty
-                      ? 'Escribe el nombre del profesor'
-                      : null,
-                ),
-                const SizedBox(height: 12),
-                Row(
-                  children: [
-                    Expanded(
-                      child: TextFormField(
-                        controller: _roomController,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Icon(
+                            LucideIcons.bookOpen,
+                            size: 18,
+                            color: const Color(0xFF53D1B6),
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            'Información de la clase',
+                            style: Theme.of(context).textTheme.titleSmall
+                                ?.copyWith(
+                                  fontWeight: FontWeight.w600,
+                                  color: const Color(0xFF53D1B6),
+                                ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      TextFormField(
+                        controller: _subjectController,
                         textInputAction: TextInputAction.next,
                         decoration: _fieldDecoration(
-                          'Aula',
-                          Icons.room_outlined,
+                          'Materia',
+                          LucideIcons.bookOpen,
                         ),
                         validator: (value) =>
                             value == null || value.trim().isEmpty
-                            ? 'Requerida'
+                            ? 'Escribe el nombre de la materia'
                             : null,
                       ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: TextFormField(
-                        controller: _nrcController,
+                      const SizedBox(height: 12),
+                      TextFormField(
+                        controller: _teacherController,
                         textInputAction: TextInputAction.next,
-                        keyboardType: TextInputType.number,
-                        inputFormatters: [
-                          FilteringTextInputFormatter.digitsOnly,
-                        ],
-                        decoration: _fieldDecoration('NRC', Icons.tag_rounded),
+                        decoration: _fieldDecoration(
+                          'Profesor',
+                          LucideIcons.user,
+                        ),
+                        validator: (value) =>
+                            value == null || value.trim().isEmpty
+                            ? 'Escribe el nombre del profesor'
+                            : null,
                       ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                TextFormField(
-                  controller: _buildingController,
-                  textInputAction: TextInputAction.next,
-                  decoration: _fieldDecoration(
-                    'Edificio',
-                    Icons.business_outlined,
+                    ],
                   ),
                 ),
-                const SizedBox(height: 12),
-                Row(
-                  children: [
-                    Expanded(
-                      child: TextFormField(
-                        controller: _startController,
-                        keyboardType: TextInputType.number,
-                        inputFormatters: [_TimeInputFormatter()],
+                const SizedBox(height: 14),
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.03),
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(
+                      color: Colors.white.withValues(alpha: 0.08),
+                    ),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Icon(
+                            LucideIcons.mapPin,
+                            size: 18,
+                            color: const Color(0xFF53D1B6),
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            'Ubicación',
+                            style: Theme.of(context).textTheme.titleSmall
+                                ?.copyWith(
+                                  fontWeight: FontWeight.w600,
+                                  color: const Color(0xFF53D1B6),
+                                ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: TextFormField(
+                              controller: _roomController,
+                              textInputAction: TextInputAction.next,
+                              decoration: _fieldDecoration(
+                                'Aula',
+                                LucideIcons.doorOpen,
+                              ),
+                              validator: (value) =>
+                                  value == null || value.trim().isEmpty
+                                  ? 'Requerida'
+                                  : null,
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: TextFormField(
+                              controller: _nrcController,
+                              textInputAction: TextInputAction.next,
+                              keyboardType: TextInputType.number,
+                              inputFormatters: [
+                                FilteringTextInputFormatter.digitsOnly,
+                              ],
+                              decoration: _fieldDecoration(
+                                'NRC',
+                                LucideIcons.tag,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      TextFormField(
+                        controller: _buildingController,
+                        textInputAction: TextInputAction.next,
                         decoration: _fieldDecoration(
-                          'Hora inicio',
-                          Icons.schedule_rounded,
+                          'Edificio',
+                          LucideIcons.building2,
                         ),
                       ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: TextFormField(
-                        controller: _endController,
-                        keyboardType: TextInputType.number,
-                        inputFormatters: [_TimeInputFormatter()],
-                        decoration: _fieldDecoration(
-                          'Hora fin',
-                          Icons.schedule_outlined,
-                        ),
-                      ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
-                const SizedBox(height: 20),
+                const SizedBox(height: 14),
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.03),
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(
+                      color: Colors.white.withValues(alpha: 0.08),
+                    ),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Icon(
+                            LucideIcons.clock,
+                            size: 18,
+                            color: const Color(0xFF53D1B6),
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            'Horario',
+                            style: Theme.of(context).textTheme.titleSmall
+                                ?.copyWith(
+                                  fontWeight: FontWeight.w600,
+                                  color: const Color(0xFF53D1B6),
+                                ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: TextFormField(
+                              controller: _startController,
+                              keyboardType: TextInputType.number,
+                              inputFormatters: [_TimeInputFormatter()],
+                              decoration: _fieldDecoration(
+                                'Hora inicio',
+                                LucideIcons.clock3,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: TextFormField(
+                              controller: _endController,
+                              keyboardType: TextInputType.number,
+                              inputFormatters: [_TimeInputFormatter()],
+                              decoration: _fieldDecoration(
+                                'Hora fin',
+                                LucideIcons.clock3,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 14),
                 SizedBox(
                   width: double.infinity,
+                  height: 48,
                   child: FilledButton.icon(
                     onPressed: _save,
-                    icon: const Icon(Icons.save_rounded),
-                    label: const Text('Guardar cambios'),
+                    icon: const Icon(LucideIcons.save),
+                    label: const Text(
+                      'Guardar cambios',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
                     style: FilledButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 15),
                       backgroundColor: const Color(0xFF53D1B6),
                       foregroundColor: const Color(0xFF09201D),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                      elevation: 0,
                     ),
                   ),
                 ),
@@ -3232,146 +3819,20 @@ class MateriaGuardadaCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final brightness = Theme.of(context).brightness;
-    final accentColor = _materiaColorForTheme(materia.color, brightness);
-    final cardColor = _cardColorForTheme(materia.color, brightness);
-    final cardTextColor = _defaultTextColor(cardColor);
-    return InkWell(
-      onTap: () {
-        showModalBottomSheet(
-          context: context,
-          backgroundColor: Theme.of(context).colorScheme.surface,
-          builder: (context) => SafeArea(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                ListTile(
-                  leading: const Icon(
-                    Icons.edit_outlined,
-                    color: Color(0xFF53D1B6),
-                  ),
-                  title: const Text('Editar'),
-                  onTap: () {
-                    Navigator.pop(context);
-                    onEdit();
-                  },
-                ),
-                ListTile(
-                  leading: const Icon(
-                    Icons.add_circle_outline_rounded,
-                    color: Color(0xFF53D1B6),
-                  ),
-                  title: const Text('Agregar al horario'),
-                  onTap: () {
-                    Navigator.pop(context);
-                    onAddToSchedule();
-                  },
-                ),
-                ListTile(
-                  leading: const Icon(
-                    Icons.delete_outline_rounded,
-                    color: Colors.red,
-                  ),
-                  title: const Text('Eliminar'),
-                  onTap: () {
-                    Navigator.pop(context);
-                    onDelete();
-                  },
-                ),
-              ],
-            ),
-          ),
-        );
-      },
-      borderRadius: BorderRadius.circular(18),
-      child: Container(
-        decoration: BoxDecoration(
-          color: cardColor,
-          borderRadius: BorderRadius.circular(18),
-          border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
-        ),
-        padding: const EdgeInsets.all(16),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            CircleAvatar(
-              radius: 24,
-              backgroundColor: accentColor,
-              child: Text(
-                materia.materia.substring(0, 1).toUpperCase(),
-                style: TextStyle(
-                  color: materia.textColor,
-                  fontSize: 22,
-                  fontWeight: FontWeight.w800,
-                ),
-              ),
-            ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Icon(
-                        Icons.menu_book_rounded,
-                        size: 16,
-                        color: cardTextColor,
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          materia.materia,
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            fontSize: 17,
-                            fontWeight: FontWeight.w800,
-                            color: cardTextColor,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 7),
-                  Text(
-                    materia.profesor,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      color: cardTextColor.withValues(alpha: 0.72),
-                      fontSize: 14,
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
-                    children: [
-                      _InfoChip(
-                        icon: Icons.location_on_outlined,
-                        label: materia.aula,
-                      ),
-                      _InfoChip(
-                        icon: Icons.confirmation_number_outlined,
-                        label: 'NRC ${materia.nrc}',
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    materia.edificio,
-                    style: TextStyle(
-                      color: cardTextColor.withValues(alpha: 0.5),
-                      fontSize: 13,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
+    // Reutilizamos ClaseCard, pasando null a los campos que no aplican
+    return ClaseCard(
+      materia: materia.materia,
+      profesor: materia.profesor,
+      nrc: materia.nrc,
+      edificio: materia.edificio,
+      aula: materia.aula,
+      horaInicio: null, // No aplica para materias guardadas
+      horaFin: null, // No aplica para materias guardadas
+      letraInicial: materia.materia.substring(0, 1).toUpperCase(),
+      color: materia.color,
+      onDelete: onDelete,
+      onEdit: onEdit,
+      onAddToSchedule: onAddToSchedule, // Activa la opción en el BottomSheet
     );
   }
 }
@@ -3435,34 +3896,35 @@ class _EditMateriaSheetState extends State<_EditMateriaSheet> {
         ? Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.12)
         : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.12);
     final fill = Theme.of(context).brightness == Brightness.light
-        ? Colors.white.withValues(alpha: 0.05)
+        ? Colors.white.withValues(alpha: 0.06)
         : Colors.white.withValues(alpha: 0.02);
     return InputDecoration(
       labelText: label,
-      prefixIcon: Icon(icon, color: const Color(0xFF53D1B6)),
+      prefixIcon: Icon(icon, size: 20),
+      filled: true,
+      fillColor: fill,
       border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(14),
         borderSide: BorderSide(color: borderColor, width: 1),
       ),
       enabledBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(14),
         borderSide: BorderSide(color: borderColor, width: 1),
       ),
       focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(14),
         borderSide: BorderSide(
           color: Theme.of(context).colorScheme.primary,
           width: 2,
         ),
       ),
-      filled: true,
-      fillColor: fill,
-      labelStyle: const TextStyle(color: Colors.white70),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+      labelStyle: const TextStyle(fontSize: 13),
     );
   }
 
   void _save() {
-    if (_formKey.currentState!.validate()) {
+    if (_formKey.currentState?.validate() ?? false) {
       final updatedMateria = MateriaGuardada(
         materia: _subjectController.text.trim(),
         profesor: _teacherController.text.trim(),
@@ -3508,7 +3970,7 @@ class _EditMateriaSheetState extends State<_EditMateriaSheet> {
                     IconButton(
                       onPressed: () => Navigator.pop(context),
                       tooltip: 'Cerrar',
-                      icon: const Icon(Icons.close_rounded),
+                      icon: const Icon(LucideIcons.x),
                     ),
                   ],
                 ),
@@ -3517,14 +3979,11 @@ class _EditMateriaSheetState extends State<_EditMateriaSheet> {
                   'Modifica los datos de la materia guardada.',
                   style: TextStyle(color: Colors.white60),
                 ),
-                const SizedBox(height: 20),
+                const SizedBox(height: 14),
                 TextFormField(
                   controller: _subjectController,
                   textInputAction: TextInputAction.next,
-                  decoration: _fieldDecoration(
-                    'Materia',
-                    Icons.menu_book_rounded,
-                  ),
+                  decoration: _fieldDecoration('Materia', LucideIcons.bookOpen),
                   validator: (value) => value == null || value.trim().isEmpty
                       ? 'Escribe el nombre de la materia'
                       : null,
@@ -3533,10 +3992,7 @@ class _EditMateriaSheetState extends State<_EditMateriaSheet> {
                 TextFormField(
                   controller: _teacherController,
                   textInputAction: TextInputAction.next,
-                  decoration: _fieldDecoration(
-                    'Profesor',
-                    Icons.person_outline_rounded,
-                  ),
+                  decoration: _fieldDecoration('Profesor', LucideIcons.user),
                   validator: (value) => value == null || value.trim().isEmpty
                       ? 'Escribe el nombre del profesor'
                       : null,
@@ -3550,7 +4006,7 @@ class _EditMateriaSheetState extends State<_EditMateriaSheet> {
                         textInputAction: TextInputAction.next,
                         decoration: _fieldDecoration(
                           'Aula',
-                          Icons.room_outlined,
+                          LucideIcons.doorOpen,
                         ),
                         validator: (value) =>
                             value == null || value.trim().isEmpty
@@ -3567,7 +4023,7 @@ class _EditMateriaSheetState extends State<_EditMateriaSheet> {
                         inputFormatters: [
                           FilteringTextInputFormatter.digitsOnly,
                         ],
-                        decoration: _fieldDecoration('NRC', Icons.tag_rounded),
+                        decoration: _fieldDecoration('NRC', LucideIcons.tag),
                       ),
                     ),
                   ],
@@ -3578,7 +4034,7 @@ class _EditMateriaSheetState extends State<_EditMateriaSheet> {
                   textInputAction: TextInputAction.next,
                   decoration: _fieldDecoration(
                     'Edificio',
-                    Icons.business_outlined,
+                    LucideIcons.building2,
                   ),
                 ),
                 const SizedBox(height: 12),
@@ -3618,7 +4074,7 @@ class _EditMateriaSheetState extends State<_EditMateriaSheet> {
                             ),
                             child: isSelected
                                 ? const Icon(
-                                    Icons.check,
+                                    LucideIcons.check,
                                     color: Color(0xFF09201D),
                                   )
                                 : null,
@@ -3628,12 +4084,12 @@ class _EditMateriaSheetState extends State<_EditMateriaSheet> {
                     },
                   ),
                 ),
-                const SizedBox(height: 20),
+                const SizedBox(height: 14),
                 SizedBox(
                   width: double.infinity,
                   child: FilledButton.icon(
                     onPressed: _save,
-                    icon: const Icon(Icons.save_rounded),
+                    icon: const Icon(LucideIcons.save),
                     label: const Text('Guardar cambios'),
                     style: FilledButton.styleFrom(
                       padding: const EdgeInsets.symmetric(vertical: 15),
