@@ -1,0 +1,323 @@
+import 'package:flutter/material.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
+
+// Importamos los modelos y el tema que creaste en los otros módulos
+import '../models/models.dart';
+import '../utils/theme.dart';
+
+class ClaseCard extends StatelessWidget {
+  final String materia;
+  final String profesor;
+  final String nrc;
+  final String edificio;
+  final String aula;
+  final String? horaInicio;
+  final String? horaFin;
+  final String letraInicial;
+  final Color color;
+  final VoidCallback onDelete;
+  final VoidCallback onEdit;
+  final VoidCallback? onAddToSchedule;
+
+  const ClaseCard({
+    super.key,
+    required this.materia,
+    required this.profesor,
+    required this.nrc,
+    required this.edificio,
+    required this.aula,
+    this.horaInicio,
+    this.horaFin,
+    required this.letraInicial,
+    required this.color,
+    required this.onDelete,
+    required this.onEdit,
+    this.onAddToSchedule,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final brightness = Theme.of(context).brightness;
+    // Utilizamos las funciones globales de theme.dart (sin guion bajo)
+    final accentColor = materiaColorForTheme(color, brightness);
+    final surfaceColor = cardColorForTheme(color, brightness);
+    final cardTextColor = defaultTextColor(surfaceColor);
+
+    return InkWell(
+      onTap: () {
+        showModalBottomSheet(
+          context: context,
+          useSafeArea: true,
+          backgroundColor: Theme.of(context).colorScheme.surface,
+          builder: (context) => SafeArea(
+            child: Material(
+              color: Theme.of(context).colorScheme.surface,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  ListTile(
+                    leading: const Icon(
+                      LucideIcons.pencil,
+                      color: Color(0xFF53D1B6),
+                    ),
+                    title: const Text('Editar'),
+                    onTap: () {
+                      Navigator.pop(context);
+                      onEdit();
+                    },
+                  ),
+                  if (onAddToSchedule != null)
+                    ListTile(
+                      leading: const Icon(
+                        LucideIcons.circlePlus,
+                        color: Color(0xFF53D1B6),
+                      ),
+                      title: const Text('Agregar al horario'),
+                      onTap: () {
+                        Navigator.pop(context);
+                        onAddToSchedule!();
+                      },
+                    ),
+                  ListTile(
+                    leading: const Icon(LucideIcons.trash2, color: Colors.red),
+                    title: const Text('Eliminar'),
+                    onTap: () {
+                      Navigator.pop(context);
+                      onDelete();
+                    },
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+      borderRadius: BorderRadius.circular(18),
+      child: Container(
+        decoration: BoxDecoration(
+          color: surfaceColor,
+          borderRadius: BorderRadius.circular(18),
+          // Borde visible en modo claro, invisible (transparente) en modo oscuro
+          border: Border.all(
+            color: brightness == Brightness.light
+                ? accentColor
+                : Colors.transparent, // Invisible en modo dark
+            width: 1.2,
+          ),
+        ),
+        padding: const EdgeInsets.all(16),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Column(
+              children: [
+                CircleAvatar(
+                  radius: 21,
+                  backgroundColor: accentColor,
+                  child: Text(
+                    letraInicial,
+                    style: TextStyle(
+                      color: Brightness.light == brightness
+                          ? Colors.black
+                          : Colors.white,
+                      fontSize: 22,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ),
+                if (horaInicio != null && horaFin != null) ...[
+                  const SizedBox(height: 8),
+                  Text(
+                    horaInicio!,
+                    style: TextStyle(
+                      color: cardTextColor,
+                      fontWeight: FontWeight.w800,
+                      fontSize: 16,
+                    ),
+                  ),
+                  const SizedBox(height: 3),
+                  Text(
+                    horaFin!,
+                    style: TextStyle(
+                      color: cardTextColor.withValues(alpha: 0.62),
+                      fontSize: 14,
+                    ),
+                  ),
+                ],
+              ],
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    materia,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      color: cardTextColor,
+                      fontSize: 17,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                  const SizedBox(height: 5),
+                  Text(
+                    profesor,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      color: cardTextColor.withValues(alpha: 0.72),
+                      fontSize: 14,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Wrap(
+                    spacing: 6,
+                    runSpacing: 6,
+                    children: [
+                      InfoChip(
+                        icon: LucideIcons.mapPin,
+                        label: aula,
+                        color: cardTextColor,
+                      ),
+                      InfoChip(
+                        icon: LucideIcons.badge,
+                        label: 'NRC $nrc',
+                        color: cardTextColor,
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    edificio,
+                    style: TextStyle(
+                      color: cardTextColor.withValues(alpha: 0.5),
+                      fontSize: 13,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class InfoChip extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final Color? color;
+
+  const InfoChip({
+    super.key,
+    required this.icon,
+    required this.label,
+    this.color,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+      decoration: BoxDecoration(
+        color: (color ?? Theme.of(context).colorScheme.onSurface).withValues(
+          alpha: 0.08,
+        ),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            icon,
+            size: 14,
+            color: color ?? Theme.of(context).colorScheme.primary,
+          ),
+          const SizedBox(width: 6),
+          Text(
+            label,
+            style: TextStyle(
+              color:
+                  color?.withValues(alpha: 0.78) ??
+                  Theme.of(context).colorScheme.onSurface
+                      .withValues(alpha: 0.7),
+              fontSize: 12,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class MateriaGuardadaCard extends StatelessWidget {
+  final MateriaGuardada materia;
+  final VoidCallback onDelete;
+  final VoidCallback onAddToSchedule;
+  final VoidCallback onEdit;
+
+  const MateriaGuardadaCard({
+    super.key,
+    required this.materia,
+    required this.onDelete,
+    required this.onAddToSchedule,
+    required this.onEdit,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return ClaseCard(
+      materia: materia.materia,
+      profesor: materia.profesor,
+      nrc: materia.nrc,
+      edificio: materia.edificio,
+      aula: materia.aula,
+      horaInicio: null,
+      horaFin: null,
+      letraInicial: materia.materia.substring(0, 1).toUpperCase(),
+      color: materia.color,
+      onDelete: onDelete,
+      onEdit: onEdit,
+      onAddToSchedule: onAddToSchedule,
+    );
+  }
+}
+
+class EmptyDay extends StatelessWidget {
+  final String day;
+
+  const EmptyDay({super.key, required this.day});
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              LucideIcons.calendarOff,
+              size: 48,
+              color: Theme.of(context).colorScheme.onSurface
+                  .withValues(alpha: 0.24),
+            ),
+            const SizedBox(height: 16),
+            Text('Día libre', style: Theme.of(context).textTheme.titleLarge),
+            const SizedBox(height: 8),
+            Text(
+              'No tienes clases el $day',
+              style: TextStyle(
+                color: Theme.of(context).colorScheme.onSurface
+                    .withValues(alpha: 0.54),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
