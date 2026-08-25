@@ -520,32 +520,73 @@ class _AppearanceSectionState extends State<AppearanceSection> {
     _dayLabelFormat = widget.dayLabelFormat;
   }
 
-  InputDecoration _fieldDecoration(
-    String label,
-    IconData icon,
-    Color primaryColor,
-  ) {
-    final borderColor = Theme.of(context).colorScheme.onSurface
-        .withValues(alpha: 0.12);
-    final fill = Theme.of(context).brightness == Brightness.light
-        ? Colors.white.withValues(alpha: 0.05)
-        : Colors.white.withValues(alpha: 0.02);
-    return InputDecoration(
-      labelText: label,
-      prefixIcon: Icon(icon, color: primaryColor),
-      filled: true,
-      fillColor: fill,
-      border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(12),
-        borderSide: BorderSide(color: borderColor, width: 1),
-      ),
-      enabledBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(12),
-        borderSide: BorderSide(color: borderColor, width: 1),
-      ),
-      focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(12),
-        borderSide: BorderSide(color: primaryColor, width: 2),
+  Widget _cardOption({
+    required String title,
+    required String subtitle,
+    required IconData icon,
+    required bool isSelected,
+    required VoidCallback onTap,
+    required Color primaryColor,
+  }) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(16),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+          decoration: BoxDecoration(
+            color: isSelected
+                ? primaryColor.withValues(alpha: 0.12)
+                : Theme.of(context).colorScheme.surface.withValues(alpha: 0.2),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(
+              color: isSelected
+                  ? primaryColor
+                  : Theme.of(context).colorScheme.onSurface
+                        .withValues(alpha: 0.12),
+              width: isSelected ? 2 : 1,
+            ),
+          ),
+          child: Row(
+            children: [
+              Icon(
+                icon,
+                color: isSelected
+                    ? primaryColor
+                    : Theme.of(context).colorScheme.onSurface,
+                size: 24,
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 15,
+                        color: Theme.of(context).colorScheme.onSurface,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      subtitle,
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Theme.of(context).colorScheme.onSurface
+                            .withValues(alpha: 0.6),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              if (isSelected)
+                Icon(LucideIcons.circleCheck, color: primaryColor, size: 22),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -635,88 +676,83 @@ class _AppearanceSectionState extends State<AppearanceSection> {
                 await widget.onWeekSettingsChanged(showWeekend: value);
               },
             ),
-            const SizedBox(height: 10),
-            DropdownButtonFormField<int>(
-              initialValue: _weekStart,
-              decoration: _fieldDecoration(
-                'Comenzar la semana en',
-                LucideIcons.calendarRange,
-                primaryColor,
-              ),
-              items: const [
-                DropdownMenuItem(value: 1, child: Text('Lunes')),
-                DropdownMenuItem(value: 2, child: Text('Martes')),
-                DropdownMenuItem(value: 3, child: Text('Miércoles')),
-                DropdownMenuItem(value: 4, child: Text('Jueves')),
-                DropdownMenuItem(value: 5, child: Text('Viernes')),
-                DropdownMenuItem(value: 6, child: Text('Sábado')),
-                DropdownMenuItem(value: 0, child: Text('Domingo')),
-              ],
-              onChanged: (value) async {
-                if (value == null) return;
-                setState(() => _weekStart = value);
-                await widget.onWeekSettingsChanged(weekStart: value);
-              },
-            ),
             const SizedBox(height: 16),
             Text(
               'Formato de los días',
-              style: Theme.of(context).textTheme.labelLarge
-                  ?.copyWith(color: primaryColor),
+              style: Theme.of(context).textTheme.titleSmall
+                  ?.copyWith(fontWeight: FontWeight.w600, color: primaryColor),
+            ),
+            const SizedBox(height: 12),
+            _cardOption(
+              title: 'Nombre completo',
+              subtitle: 'Ejemplo: Lunes, Martes, Miércoles...',
+              icon: LucideIcons.calendarDays,
+              isSelected: _dayLabelFormat == DayLabelFormat.full,
+              onTap: () async {
+                setState(() => _dayLabelFormat = DayLabelFormat.full);
+                await widget.onWeekSettingsChanged(
+                  labelFormat: DayLabelFormat.full,
+                );
+              },
+              primaryColor: primaryColor,
             ),
             const SizedBox(height: 8),
-            SizedBox(
-              width: double.infinity,
-              child: SegmentedButton<DayLabelFormat>(
-                segments: const [
-                  ButtonSegment(
-                    value: DayLabelFormat.full,
-                    label: Text('Todo'),
-                  ),
-                  ButtonSegment(
-                    value: DayLabelFormat.short,
-                    label: Text('3 letras'),
-                  ),
-                  ButtonSegment(
-                    value: DayLabelFormat.initial,
-                    label: Text('Inicial'),
-                  ),
-                ],
-                selected: {_dayLabelFormat},
-                onSelectionChanged: (selection) async {
-                  final format = selection.first;
-                  setState(() => _dayLabelFormat = format);
-                  await widget.onWeekSettingsChanged(labelFormat: format);
-                },
-              ),
-            ),
-            const SizedBox(height: 18),
-            Text(
-              'Vista previa',
-              style: Theme.of(context).textTheme.labelLarge
-                  ?.copyWith(color: primaryColor),
-            ),
-            const SizedBox(height: 10),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: _previewDays.map((day) {
-                final isWednesday = day == 'Miércoles';
-                return Chip(
-                  avatar: Icon(
-                    isWednesday ? LucideIcons.badgeX : LucideIcons.calendar,
-                    size: 16,
-                    color: primaryColor,
-                  ),
-                  label: Text(_previewLabel(day)),
-                  side: BorderSide.none,
-                  backgroundColor: primaryColor.withValues(alpha: 0.12),
-                  labelStyle: TextStyle(
-                    color: Theme.of(context).colorScheme.onSurface,
-                    fontWeight: FontWeight.w700,
-                  ),
+            _cardOption(
+              title: 'Abreviado (3 letras)',
+              subtitle: 'Ejemplo: Lun, Mar, Mié, Jue...',
+              icon: LucideIcons.calendar,
+              isSelected: _dayLabelFormat == DayLabelFormat.short,
+              onTap: () async {
+                setState(() => _dayLabelFormat = DayLabelFormat.short);
+                await widget.onWeekSettingsChanged(
+                  labelFormat: DayLabelFormat.short,
                 );
-              }).toList(),
+              },
+              primaryColor: primaryColor,
+            ),
+            const SizedBox(height: 8),
+            _cardOption(
+              title: 'Inicial',
+              subtitle: 'Ejemplo: L, M, X, J, V...',
+              icon: LucideIcons.calendarRange,
+              isSelected: _dayLabelFormat == DayLabelFormat.initial,
+              onTap: () async {
+                setState(() => _dayLabelFormat = DayLabelFormat.initial);
+                await widget.onWeekSettingsChanged(
+                  labelFormat: DayLabelFormat.initial,
+                );
+              },
+              primaryColor: primaryColor,
+            ),
+            const SizedBox(height: 24),
+            Text(
+              'Comenzar la semana en',
+              style: Theme.of(context).textTheme.titleSmall
+                  ?.copyWith(fontWeight: FontWeight.w600, color: primaryColor),
+            ),
+            const SizedBox(height: 12),
+            _cardOption(
+              title: 'Lunes',
+              subtitle: 'La semana inicia en Lunes',
+              icon: LucideIcons.calendar,
+              isSelected: _weekStart == 1,
+              onTap: () async {
+                setState(() => _weekStart = 1);
+                await widget.onWeekSettingsChanged(weekStart: 1);
+              },
+              primaryColor: primaryColor,
+            ),
+            const SizedBox(height: 8),
+            _cardOption(
+              title: 'Domingo',
+              subtitle: 'La semana inicia en Domingo',
+              icon: LucideIcons.calendarRange,
+              isSelected: _weekStart == 0,
+              onTap: () async {
+                setState(() => _weekStart = 0);
+                await widget.onWeekSettingsChanged(weekStart: 0);
+              },
+              primaryColor: primaryColor,
             ),
           ],
         ),
@@ -763,32 +799,73 @@ class _NotificationsSectionState extends State<NotificationsSection> {
     await widget.onNotificationsChanged(value);
   }
 
-  InputDecoration _fieldDecoration(
-    String label,
-    IconData icon,
-    Color primaryColor,
-  ) {
-    final borderColor = Theme.of(context).colorScheme.onSurface
-        .withValues(alpha: 0.12);
-    final fill = Theme.of(context).brightness == Brightness.light
-        ? Colors.white.withValues(alpha: 0.05)
-        : Colors.white.withValues(alpha: 0.02);
-    return InputDecoration(
-      labelText: label,
-      prefixIcon: Icon(icon, color: primaryColor),
-      filled: true,
-      fillColor: fill,
-      border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(12),
-        borderSide: BorderSide(color: borderColor, width: 1),
-      ),
-      enabledBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(12),
-        borderSide: BorderSide(color: borderColor, width: 1),
-      ),
-      focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(12),
-        borderSide: BorderSide(color: primaryColor, width: 2),
+  Widget _cardOption({
+    required String title,
+    required String subtitle,
+    required IconData icon,
+    required bool isSelected,
+    required VoidCallback onTap,
+    required Color primaryColor,
+  }) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(16),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+          decoration: BoxDecoration(
+            color: isSelected
+                ? primaryColor.withValues(alpha: 0.12)
+                : Theme.of(context).colorScheme.surface.withValues(alpha: 0.2),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(
+              color: isSelected
+                  ? primaryColor
+                  : Theme.of(context).colorScheme.onSurface
+                        .withValues(alpha: 0.12),
+              width: isSelected ? 2 : 1,
+            ),
+          ),
+          child: Row(
+            children: [
+              Icon(
+                icon,
+                color: isSelected
+                    ? primaryColor
+                    : Theme.of(context).colorScheme.onSurface,
+                size: 24,
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 15,
+                        color: Theme.of(context).colorScheme.onSurface,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      subtitle,
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Theme.of(context).colorScheme.onSurface
+                            .withValues(alpha: 0.6),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              if (isSelected)
+                Icon(LucideIcons.circleCheck, color: primaryColor, size: 22),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -831,31 +908,26 @@ class _NotificationsSectionState extends State<NotificationsSection> {
         const SizedBox(height: 22),
         Text(
           'Tiempo de aviso',
-          style: Theme.of(context).textTheme.titleMedium
-              ?.copyWith(fontWeight: FontWeight.w800, color: primaryColor),
+          style: Theme.of(context).textTheme.titleSmall
+              ?.copyWith(fontWeight: FontWeight.w600, color: primaryColor),
         ),
-        const SizedBox(height: 14),
-        DropdownButtonFormField<int>(
-          initialValue: _notificationMinutes,
-          decoration: _fieldDecoration(
-            'Minutos antes de la clase',
-            LucideIcons.clock,
-            primaryColor,
-          ),
-          items: _notificationOptions.map((minutes) {
-            return DropdownMenuItem<int>(
-              value: minutes,
-              child: Text('$minutes minutos'),
-            );
-          }).toList(),
-          onChanged: _notificationsEnabled
-              ? (value) {
-                  if (value != null) {
-                    setState(() => _notificationMinutes = value);
-                  }
-                }
-              : null,
-        ),
+        const SizedBox(height: 12),
+        ..._notificationOptions.map((minutes) {
+          final isSelected = _notificationMinutes == minutes;
+          return Padding(
+            padding: const EdgeInsets.only(bottom: 8),
+            child: _cardOption(
+              title: '$minutes minutos antes',
+              subtitle: 'Aviso previo para prepararte',
+              icon: LucideIcons.clock,
+              isSelected: isSelected,
+              onTap: _notificationsEnabled
+                  ? () => setState(() => _notificationMinutes = minutes)
+                  : () {},
+              primaryColor: primaryColor,
+            ),
+          );
+        }),
       ],
     );
   }

@@ -14,6 +14,7 @@ class WelcomeSetupScreen extends StatefulWidget {
     required String profileName,
     required String profileDetail,
     required DayLabelFormat dayFormat,
+    required int weekStart,
     required bool notificationsEnabled,
     required int notificationMinutes,
     required ThemeMode themeMode,
@@ -42,6 +43,7 @@ class _WelcomeSetupScreenState extends State<WelcomeSetupScreen> {
     text: 'Ingeniería de Software',
   );
   DayLabelFormat _selectedFormat = DayLabelFormat.short;
+  int _weekStart = 1; // Por defecto Lunes
   bool _notifications = true;
   int _notificationMinutes = 15;
   final List<int> _notificationOptions = [5, 10, 15, 20];
@@ -101,7 +103,7 @@ class _WelcomeSetupScreenState extends State<WelcomeSetupScreen> {
   @override
   Widget build(BuildContext context) {
     final currentActiveColor = _activeColor;
-    const totalSteps = 5;
+    const totalSteps = 5; // Mantenemos 5 pasos limpios integrando las opciones de calendario juntas
 
     return Scaffold(
       body: SafeArea(
@@ -133,7 +135,7 @@ class _WelcomeSetupScreenState extends State<WelcomeSetupScreen> {
                     _buildThemeStep(),
                     _buildColorStep(),
                     _buildProfileStep(),
-                    _buildDayFormatStep(),
+                    _buildDayFormatAndStartStep(), // Apartado unificado de formato y semana
                     _buildNotificationsStep(),
                   ],
                 ),
@@ -180,6 +182,7 @@ class _WelcomeSetupScreenState extends State<WelcomeSetupScreen> {
                           profileName: _nameController.text,
                           profileDetail: _detailController.text,
                           dayFormat: _selectedFormat,
+                          weekStart: _weekStart,
                           notificationsEnabled: _notifications,
                           notificationMinutes: _notificationMinutes,
                           themeMode: _selectedThemeMode,
@@ -391,55 +394,72 @@ class _WelcomeSetupScreenState extends State<WelcomeSetupScreen> {
     );
   }
 
-  Widget _buildDayFormatStep() {
+  // Apartado unificado: Formato de días y Día de inicio de semana
+  Widget _buildDayFormatAndStartStep() {
     String previewText(DayLabelFormat format) {
-      if (format == DayLabelFormat.initial) return 'L (o M, X, J, V...)';
+      if (format == DayLabelFormat.initial) return 'L, M, X, J, V...';
       if (format == DayLabelFormat.short) return 'Lun, Mar, Mié, Jue...';
       return 'Lunes, Martes, Miércoles...';
     }
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'Formato de los días:',
-          style: Theme.of(context).textTheme.titleSmall
-              ?.copyWith(fontWeight: FontWeight.w600, color: _activeColor),
-        ),
-        const SizedBox(height: 20),
-        Expanded(
-          child: ListView(
-            children: [
-              _cardOption(
-                title: 'Nombre completo',
-                subtitle: 'Ejemplo: ${previewText(DayLabelFormat.full)}',
-                icon: LucideIcons.calendarDays,
-                isSelected: _selectedFormat == DayLabelFormat.full,
-                onTap: () =>
-                    setState(() => _selectedFormat = DayLabelFormat.full),
-              ),
-              const SizedBox(height: 12),
-              _cardOption(
-                title: 'Abreviado (3 letras)',
-                subtitle: 'Ejemplo: ${previewText(DayLabelFormat.short)}',
-                icon: LucideIcons.calendar,
-                isSelected: _selectedFormat == DayLabelFormat.short,
-                onTap: () =>
-                    setState(() => _selectedFormat = DayLabelFormat.short),
-              ),
-              const SizedBox(height: 12),
-              _cardOption(
-                title: 'Inicial',
-                subtitle: 'Ejemplo: ${previewText(DayLabelFormat.initial)}',
-                icon: LucideIcons.calendarRange,
-                isSelected: _selectedFormat == DayLabelFormat.initial,
-                onTap: () =>
-                    setState(() => _selectedFormat = DayLabelFormat.initial),
-              ),
-            ],
+    return SingleChildScrollView(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Formato de los días:',
+            style: Theme.of(context).textTheme.titleSmall
+                ?.copyWith(fontWeight: FontWeight.w600, color: _activeColor),
           ),
-        ),
-      ],
+          const SizedBox(height: 12),
+          _cardOption(
+            title: 'Nombre completo',
+            subtitle: 'Ejemplo: ${previewText(DayLabelFormat.full)}',
+            icon: LucideIcons.calendarDays,
+            isSelected: _selectedFormat == DayLabelFormat.full,
+            onTap: () => setState(() => _selectedFormat = DayLabelFormat.full),
+          ),
+          const SizedBox(height: 8),
+          _cardOption(
+            title: 'Abreviado (3 letras)',
+            subtitle: 'Ejemplo: ${previewText(DayLabelFormat.short)}',
+            icon: LucideIcons.calendar,
+            isSelected: _selectedFormat == DayLabelFormat.short,
+            onTap: () => setState(() => _selectedFormat = DayLabelFormat.short),
+          ),
+          const SizedBox(height: 8),
+          _cardOption(
+            title: 'Inicial',
+            subtitle: 'Ejemplo: ${previewText(DayLabelFormat.initial)}',
+            icon: LucideIcons.calendarRange,
+            isSelected: _selectedFormat == DayLabelFormat.initial,
+            onTap: () =>
+                setState(() => _selectedFormat = DayLabelFormat.initial),
+          ),
+          const SizedBox(height: 24),
+          Text(
+            'Comenzar la semana en:',
+            style: Theme.of(context).textTheme.titleSmall
+                ?.copyWith(fontWeight: FontWeight.w600, color: _activeColor),
+          ),
+          const SizedBox(height: 12),
+          _cardOption(
+            title: 'Lunes',
+            subtitle: 'La semana inicia en Lunes',
+            icon: LucideIcons.calendar,
+            isSelected: _weekStart == 1,
+            onTap: () => setState(() => _weekStart = 1),
+          ),
+          const SizedBox(height: 8),
+          _cardOption(
+            title: 'Domingo',
+            subtitle: 'La semana inicia en Domingo',
+            icon: LucideIcons.calendarRange,
+            isSelected: _weekStart == 0,
+            onTap: () => setState(() => _weekStart = 0),
+          ),
+        ],
+      ),
     );
   }
 
@@ -467,38 +487,28 @@ class _WelcomeSetupScreenState extends State<WelcomeSetupScreen> {
               onChanged: (val) => setState(() => _notifications = val),
             ),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 20),
           Text(
-            'Tiempo de aviso',
-            style: TextStyle(
-              color: Theme.of(context).colorScheme.onSurface
-                  .withValues(alpha: 0.8),
-              fontWeight: FontWeight.w600,
-              fontSize: 13,
-            ),
+            'Tiempo de aviso:',
+            style: Theme.of(context).textTheme.titleSmall
+                ?.copyWith(fontWeight: FontWeight.w600, color: _activeColor),
           ),
-          const SizedBox(height: 14),
-          DropdownButtonFormField<int>(
-            value: _notificationMinutes,
-            decoration: _fieldDecoration(
-              'Minutos antes de la clase',
-              LucideIcons.clock,
-              _activeColor,
-            ),
-            items: _notificationOptions.map((minutes) {
-              return DropdownMenuItem<int>(
-                value: minutes,
-                child: Text('$minutes minutos'),
-              );
-            }).toList(),
-            onChanged: _notifications
-                ? (value) {
-                    if (value != null) {
-                      setState(() => _notificationMinutes = value);
-                    }
-                  }
-                : null,
-          ),
+          const SizedBox(height: 12),
+          ..._notificationOptions.map((minutes) {
+            final isSelected = _notificationMinutes == minutes;
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: _cardOption(
+                title: '$minutes minutos antes',
+                subtitle: 'Aviso previo para prepararte',
+                icon: LucideIcons.clock,
+                isSelected: isSelected,
+                onTap: _notifications
+                    ? () => setState(() => _notificationMinutes = minutes)
+                    : () {},
+              ),
+            );
+          }),
         ],
       ),
     );
@@ -519,7 +529,7 @@ class _WelcomeSetupScreenState extends State<WelcomeSetupScreen> {
         onTap: onTap,
         borderRadius: BorderRadius.circular(16),
         child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
           decoration: BoxDecoration(
             color: isSelected
                 ? primary.withValues(alpha: 0.12)

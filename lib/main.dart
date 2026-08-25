@@ -122,6 +122,7 @@ class _MainAppState extends State<MainApp> {
     required String profileName,
     required String profileDetail,
     required DayLabelFormat dayFormat,
+    required int weekStart, // <--- Añadido para recibir el inicio de semana
     required bool notificationsEnabled,
     required int notificationMinutes,
     required ThemeMode themeMode,
@@ -132,6 +133,10 @@ class _MainAppState extends State<MainApp> {
     await prefs.setString('profile_name', profileName);
     await prefs.setString('profile_detail', profileDetail);
     await prefs.setString('day_label_format', dayFormat.name);
+    await prefs.setInt(
+      'week_start',
+      weekStart,
+    ); // <--- Guardado en preferencias
     await prefs.setBool('notifications_enabled', notificationsEnabled);
     await prefs.setInt('notification_minutes', notificationMinutes);
     await prefs.setString(
@@ -294,7 +299,7 @@ class _MainAppState extends State<MainApp> {
             ? ColorScheme(
                 brightness: _themeMode == ThemeMode.light
                     ? Brightness.light
-                    : Brightness.dark, // <--- Sincronizado con el tema
+                    : Brightness.dark,
                 primary: _primaryColor,
                 onPrimary: _primaryColor == Colors.black
                     ? Colors.white
@@ -373,7 +378,7 @@ class _MainAppState extends State<MainApp> {
         colorScheme:
             _primaryColor == Colors.black || _primaryColor == Colors.white
             ? ColorScheme(
-                brightness: Brightness.dark, // <--- Sincronizado para darkTheme
+                brightness: Brightness.dark,
                 primary: _primaryColor,
                 onPrimary: _primaryColor == Colors.black
                     ? Colors.white
@@ -421,7 +426,7 @@ class _MainAppState extends State<MainApp> {
           ? WelcomeSetupScreen(
               initialThemeMode: _themeMode,
               onThemeModeChanged: _setThemeMode,
-              onPrimaryColorChanged: _setPrimaryColor, // Conectado en vivo
+              onPrimaryColorChanged: _setPrimaryColor,
               onFinishSetup: _completeSetup,
             )
           : HorarioScreen(
