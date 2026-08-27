@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../models/models.dart';
@@ -523,32 +524,20 @@ class _AddClassSheetState extends State<AddClassSheet> {
                             ],
                           ),
                           const SizedBox(height: 16),
-                          Row(
-                            children: [
-                              Expanded(
-                                child: TextFormField(
-                                  controller: _startController,
-                                  keyboardType: TextInputType.number,
-                                  inputFormatters: [_TimeInputFormatter()],
-                                  decoration: _fieldDecoration(
-                                    'Hora inicio',
-                                    LucideIcons.clock3,
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                child: TextFormField(
-                                  controller: _endController,
-                                  keyboardType: TextInputType.number,
-                                  inputFormatters: [_TimeInputFormatter()],
-                                  decoration: _fieldDecoration(
-                                    'Hora fin',
-                                    LucideIcons.clock3,
-                                  ),
-                                ),
-                              ),
-                            ],
+                          TimeSelector(
+                            label: 'Hora inicio',
+                            icon: LucideIcons.clock3,
+                            initialTime: _startController.text,
+                            onTimeChanged: (time) => _startController.text = time,
+                            primaryColor: primaryColor,
+                          ),
+                          const SizedBox(height: 12),
+                          TimeSelector(
+                            label: 'Hora fin',
+                            icon: LucideIcons.clock3,
+                            initialTime: _endController.text,
+                            onTimeChanged: (time) => _endController.text = time,
+                            primaryColor: primaryColor,
                           ),
                         ],
                       ),
@@ -1469,32 +1458,20 @@ class _EditClassSheetState extends State<EditClassSheet> {
                             ],
                           ),
                           const SizedBox(height: 16),
-                          Row(
-                            children: [
-                              Expanded(
-                                child: TextFormField(
-                                  controller: _startController,
-                                  keyboardType: TextInputType.number,
-                                  inputFormatters: [_TimeInputFormatter()],
-                                  decoration: _fieldDecoration(
-                                    'Hora inicio',
-                                    LucideIcons.clock3,
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                child: TextFormField(
-                                  controller: _endController,
-                                  keyboardType: TextInputType.number,
-                                  inputFormatters: [_TimeInputFormatter()],
-                                  decoration: _fieldDecoration(
-                                    'Hora fin',
-                                    LucideIcons.clock3,
-                                  ),
-                                ),
-                              ),
-                            ],
+                          TimeSelector(
+                            label: 'Hora inicio',
+                            icon: LucideIcons.clock3,
+                            initialTime: _startController.text,
+                            onTimeChanged: (time) => _startController.text = time,
+                            primaryColor: primaryColor,
+                          ),
+                          const SizedBox(height: 12),
+                          TimeSelector(
+                            label: 'Hora fin',
+                            icon: LucideIcons.clock3,
+                            initialTime: _endController.text,
+                            onTimeChanged: (time) => _endController.text = time,
+                            primaryColor: primaryColor,
                           ),
                         ],
                       ),
@@ -1907,23 +1884,279 @@ class _EditMateriaSheetState extends State<EditMateriaSheet> {
   }
 }
 
-class _TimeInputFormatter extends TextInputFormatter {
-  @override
-  TextEditingValue formatEditUpdate(
-    TextEditingValue oldValue,
-    TextEditingValue newValue,
-  ) {
-    final digits = newValue.text.replaceAll(RegExp(r'[^0-9]'), '');
-    if (digits.isEmpty) return newValue.copyWith(text: '');
+class TimeSelector extends StatefulWidget {
+  final String label;
+  final IconData icon;
+  final String initialTime;
+  final Function(String) onTimeChanged;
+  final Color primaryColor;
 
-    String formatted = '';
-    for (int i = 0; i < digits.length && i < 4; i++) {
-      if (i == 2) formatted += ':';
-      formatted += digits[i];
+  const TimeSelector({
+    super.key,
+    required this.label,
+    required this.icon,
+    required this.initialTime,
+    required this.onTimeChanged,
+    required this.primaryColor,
+  });
+
+  @override
+  State<TimeSelector> createState() => _TimeSelectorState();
+}
+
+class _TimeSelectorState extends State<TimeSelector> {
+  late String _selectedTime;
+
+  @override
+  void initState() {
+    super.initState();
+    _selectedTime = widget.initialTime;
+  }
+
+  void _openTimePicker() async {
+    final parts = _selectedTime.split(':');
+    final initialHour = int.parse(parts[0]);
+    final initialMinute = int.parse(parts[1]);
+
+    final result = await showModalBottomSheet<String>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (context) => _TimePickerModal(
+        initialHour: initialHour,
+        initialMinute: initialMinute,
+        primaryColor: widget.primaryColor,
+      ),
+    );
+
+    if (result != null) {
+      setState(() {
+        _selectedTime = result;
+        widget.onTimeChanged(result);
+      });
     }
-    return TextEditingValue(
-      text: formatted,
-      selection: TextSelection.collapsed(offset: formatted.length),
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final borderColor = Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.12);
+    final fill = Theme.of(context).brightness == Brightness.light
+        ? Colors.white.withValues(alpha: 0.06)
+        : Colors.white.withValues(alpha: 0.02);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          widget.label,
+          style: TextStyle(
+            fontSize: 13,
+            color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
+          ),
+        ),
+        const SizedBox(height: 8),
+        InkWell(
+          onTap: _openTimePicker,
+          borderRadius: BorderRadius.circular(14),
+          child: Container(
+            decoration: BoxDecoration(
+              color: fill,
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: borderColor, width: 1),
+            ),
+            child: Row(
+              children: [
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                  child: Icon(widget.icon, size: 20, color: widget.primaryColor),
+                ),
+                Expanded(
+                  child: Text(
+                    _selectedTime,
+                    style: const TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                  child: Icon(
+                    LucideIcons.chevronDown,
+                    size: 20,
+                    color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.4),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _TimePickerModal extends StatefulWidget {
+  final int initialHour;
+  final int initialMinute;
+  final Color primaryColor;
+
+  const _TimePickerModal({
+    required this.initialHour,
+    required this.initialMinute,
+    required this.primaryColor,
+  });
+
+  @override
+  State<_TimePickerModal> createState() => _TimePickerModalState();
+}
+
+class _TimePickerModalState extends State<_TimePickerModal> {
+  late FixedExtentScrollController _hourController;
+  late FixedExtentScrollController _minuteController;
+
+  @override
+  void initState() {
+    super.initState();
+    _hourController = FixedExtentScrollController(initialItem: widget.initialHour);
+    _minuteController = FixedExtentScrollController(initialItem: widget.initialMinute ~/ 5);
+  }
+
+  @override
+  void dispose() {
+    _hourController.dispose();
+    _minuteController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surface,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            margin: const EdgeInsets.only(top: 12),
+            width: 40,
+            height: 4,
+            decoration: BoxDecoration(
+              color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.2),
+              borderRadius: BorderRadius.circular(2),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 20, 20, 10),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('Cancelar'),
+                ),
+                Text(
+                  'Seleccionar hora',
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                TextButton(
+                  onPressed: () {
+                    final hour = _hourController.selectedItem;
+                    final minute = _minuteController.selectedItem * 5;
+                    final timeString = '${hour.toString().padLeft(2, '0')}:${minute.toString().padLeft(2, '0')}';
+                    Navigator.pop(context, timeString);
+                  },
+                  child: Text(
+                    'Confirmar',
+                    style: TextStyle(
+                      color: widget.primaryColor,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 10),
+          SizedBox(
+            height: 200,
+            child: Row(
+              children: [
+                Expanded(
+                  child: CupertinoPicker(
+                    scrollController: _hourController,
+                    itemExtent: 40,
+                    onSelectedItemChanged: (index) {
+                      setState(() {});
+                    },
+                    selectionOverlay: Container(
+                      decoration: BoxDecoration(
+                        color: widget.primaryColor.withValues(alpha: 0.1),
+                        border: Border(
+                          top: BorderSide(color: widget.primaryColor.withValues(alpha: 0.3)),
+                          bottom: BorderSide(color: widget.primaryColor.withValues(alpha: 0.3)),
+                        ),
+                      ),
+                    ),
+                    children: List.generate(24, (index) {
+                      return Center(
+                        child: Text(
+                          index.toString().padLeft(2, '0'),
+                          style: TextStyle(
+                            fontSize: 22,
+                            fontWeight: FontWeight.w600,
+                            color: _hourController.selectedItem == index
+                                ? widget.primaryColor
+                                : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
+                          ),
+                        ),
+                      );
+                    }),
+                  ),
+                ),
+                const Text(':', style: TextStyle(fontSize: 32, fontWeight: FontWeight.bold)),
+                Expanded(
+                  child: CupertinoPicker(
+                    scrollController: _minuteController,
+                    itemExtent: 40,
+                    onSelectedItemChanged: (index) {
+                      setState(() {});
+                    },
+                    selectionOverlay: Container(
+                      decoration: BoxDecoration(
+                        color: widget.primaryColor.withValues(alpha: 0.1),
+                        border: Border(
+                          top: BorderSide(color: widget.primaryColor.withValues(alpha: 0.3)),
+                          bottom: BorderSide(color: widget.primaryColor.withValues(alpha: 0.3)),
+                        ),
+                      ),
+                    ),
+                    children: List.generate(12, (index) {
+                      final minute = index * 5;
+                      return Center(
+                        child: Text(
+                          minute.toString().padLeft(2, '0'),
+                          style: TextStyle(
+                            fontSize: 22,
+                            fontWeight: FontWeight.w600,
+                            color: _minuteController.selectedItem == index
+                                ? widget.primaryColor
+                                : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
+                          ),
+                        ),
+                      );
+                    }),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 20),
+        ],
+      ),
     );
   }
 }

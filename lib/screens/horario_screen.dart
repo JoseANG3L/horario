@@ -79,6 +79,8 @@ class HorarioScreenState extends State<HorarioScreen>
   bool _showWeekend = true;
   int _weekStart = 1;
   DayLabelFormat _dayLabelFormat = DayLabelFormat.short;
+  int _notificationMinutes = 15;
+  TimeFormat _timeFormat = TimeFormat.twentyFourHour;
 
   static const _allDays = [
     'Domingo',
@@ -170,6 +172,12 @@ class HorarioScreenState extends State<HorarioScreen>
 
     setState(() {
       _notificationsEnabled = prefs.getBool('notifications_enabled') ?? false;
+      _notificationMinutes = prefs.getInt('notification_minutes') ?? 15;
+      final savedTimeFormat = prefs.getString('time_format');
+      _timeFormat = TimeFormat.values.firstWhere(
+        (format) => format.name == savedTimeFormat,
+        orElse: () => TimeFormat.twentyFourHour,
+      );
     });
 
     if (_notificationsEnabled) {
@@ -452,6 +460,35 @@ class HorarioScreenState extends State<HorarioScreen>
     }
   }
 
+  Future<void> _setNotificationMinutes(int minutes) async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() => _notificationMinutes = minutes);
+    await prefs.setInt('notification_minutes', minutes);
+
+    if (_notificationsEnabled) {
+      await _scheduleNextClassNotification();
+    }
+  }
+
+  Future<void> _setTimeFormat(TimeFormat format) async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() => _timeFormat = format);
+    await prefs.setString('time_format', format.name);
+  }
+
+  String _formatTimeForNotification(String time24) {
+    if (_timeFormat == TimeFormat.twentyFourHour) {
+      return time24;
+    }
+    
+    final parts = time24.split(':');
+    final hour = int.parse(parts[0]);
+    final minute = parts[1];
+    final period = hour >= 12 ? 'PM' : 'AM';
+    final hour12 = hour % 12 == 0 ? 12 : hour % 12;
+    return '${hour12.toString().padLeft(2, '0')}:$minute $period';
+  }
+
   Future<void> _scheduleNextClassNotification() async {
     await notificationsPlugin.cancelAll();
 
@@ -459,12 +496,17 @@ class HorarioScreenState extends State<HorarioScreen>
     Clase? nextClass;
     DateTime? nextClassTime;
 
+    // Determine which days to check based on _showWeekend setting
+    final validWeekdays = _showWeekend
+        ? [0, 1, 2, 3, 4, 5, 6] // All days (Sunday=0 to Saturday=6)
+        : [1, 2, 3, 4, 5]; // Monday to Friday
+
     for (int dayOffset = 0; dayOffset < 7; dayOffset++) {
       final checkDate = now.add(Duration(days: dayOffset));
-      final weekday = checkDate.weekday;
+      final weekday = checkDate.weekday == 7 ? 0 : checkDate.weekday; // Convert Sunday from 7 to 0
 
-      if (weekday >= 1 && weekday <= 5) {
-        final dayIndex = weekday - 1;
+      if (validWeekdays.contains(weekday)) {
+        final dayIndex = weekday;
         final classes = _classesByDay[dayIndex];
 
         for (final clase in classes) {
@@ -482,7 +524,7 @@ class HorarioScreenState extends State<HorarioScreen>
 
     if (nextClass != null && nextClassTime != null) {
       final notificationTime = nextClassTime.subtract(
-        const Duration(minutes: 15),
+        Duration(minutes: _notificationMinutes),
       );
 
       if (notificationTime.isAfter(now)) {
@@ -501,7 +543,7 @@ class HorarioScreenState extends State<HorarioScreen>
         await notificationsPlugin.zonedSchedule(
           0,
           'Próxima clase: ${nextClass.materia}',
-          'Tu clase comienza en 15 minutos en ${nextClass.aula}',
+          'Tu clase de ${_formatTimeForNotification(nextClass.horaInicio)} comienza en $_notificationMinutes minutos en ${nextClass.aula}',
           tz.TZDateTime.from(notificationTime, tz.local),
           notificationDetails,
           uiLocalNotificationDateInterpretation:
@@ -699,6 +741,7 @@ class HorarioScreenState extends State<HorarioScreen>
                 },
                 onDeleteClass: _deleteClass,
                 onEditClass: _editClass,
+                timeFormat: _timeFormat,
               )
             : _selectedTab == 1
             ? MateriasGuardadasTab(
@@ -739,10 +782,14 @@ class HorarioScreenState extends State<HorarioScreen>
                 weekStart: _weekStart,
                 dayLabelFormat: _dayLabelFormat,
                 onWeekSettingsChanged: _updateWeekSettings,
+                timeFormat: _timeFormat,
+                onTimeFormatChanged: _setTimeFormat,
               )
             : NotificationsSection(
                 notificationsEnabled: _notificationsEnabled,
                 onNotificationsChanged: _toggleNotifications,
+                onNotificationMinutesChanged: _setNotificationMinutes,
+                initialNotificationMinutes: _notificationMinutes,
                 primaryColor: widget.primaryColor,
               ),
       ),

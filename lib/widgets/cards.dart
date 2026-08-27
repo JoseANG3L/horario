@@ -18,6 +18,7 @@ class ClaseCard extends StatelessWidget {
   final VoidCallback onDelete;
   final VoidCallback onEdit;
   final VoidCallback? onAddToSchedule;
+  final TimeFormat timeFormat;
 
   const ClaseCard({
     super.key,
@@ -33,7 +34,21 @@ class ClaseCard extends StatelessWidget {
     required this.onDelete,
     required this.onEdit,
     this.onAddToSchedule,
+    this.timeFormat = TimeFormat.twentyFourHour,
   });
+
+  String _formatTime(String time24) {
+    if (timeFormat == TimeFormat.twentyFourHour) {
+      return time24;
+    }
+    
+    final parts = time24.split(':');
+    final hour = int.parse(parts[0]);
+    final minute = parts[1];
+    final period = hour >= 12 ? 'PM' : 'AM';
+    final hour12 = hour % 12 == 0 ? 12 : hour % 12;
+    return '${hour12.toString().padLeft(2, '0')}:$minute $period';
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -93,7 +108,8 @@ class ClaseCard extends StatelessWidget {
         );
       },
       borderRadius: BorderRadius.circular(18),
-      child: Container(
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
         decoration: BoxDecoration(
           color: surfaceColor,
           borderRadius: BorderRadius.circular(18),
@@ -105,14 +121,14 @@ class ClaseCard extends StatelessWidget {
             width: 1.2,
           ),
         ),
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(12),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Column(
               children: [
                 CircleAvatar(
-                  radius: 21,
+                  radius: 18,
                   backgroundColor: accentColor,
                   child: Text(
                     letraInicial,
@@ -120,67 +136,66 @@ class ClaseCard extends StatelessWidget {
                       color: Brightness.light == brightness
                           ? Colors.black
                           : Colors.white,
-                      fontSize: 22,
+                      fontSize: 18,
                       fontWeight: FontWeight.w800,
                     ),
                   ),
                 ),
                 if (horaInicio != null && horaFin != null) ...[
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 6),
                   Text(
-                    horaInicio!,
+                    _formatTime(horaInicio!),
                     style: TextStyle(
                       color: cardTextColor,
                       fontWeight: FontWeight.w800,
-                      fontSize: 16,
+                      fontSize: 14,
                     ),
                   ),
-                  const SizedBox(height: 3),
+                  const SizedBox(height: 2),
                   Text(
-                    horaFin!,
+                    _formatTime(horaFin!),
                     style: TextStyle(
                       color: cardTextColor.withValues(alpha: 0.62),
-                      fontSize: 14,
+                      fontSize: 12,
                     ),
                   ),
                 ],
               ],
             ),
-            const SizedBox(width: 14),
+            const SizedBox(width: 12),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
                     materia,
-                    maxLines: 2,
+                    maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
                       color: cardTextColor,
-                      fontSize: 17,
+                      fontSize: 15,
                       fontWeight: FontWeight.w800,
                     ),
                   ),
-                  const SizedBox(height: 5),
+                  const SizedBox(height: 3),
                   Text(
                     profesor,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
                       color: cardTextColor.withValues(alpha: 0.72),
-                      fontSize: 14,
+                      fontSize: 12,
                     ),
                   ),
-                  const SizedBox(height: 12),
-                  Wrap(
-                    spacing: 6,
-                    runSpacing: 6,
+                  const SizedBox(height: 6),
+                  Row(
                     children: [
                       InfoChip(
                         icon: LucideIcons.mapPin,
                         label: aula,
                         color: cardTextColor,
                       ),
+                      const SizedBox(width: 4),
                       InfoChip(
                         icon: LucideIcons.badge,
                         label: 'NRC $nrc',
@@ -188,12 +203,14 @@ class ClaseCard extends StatelessWidget {
                       ),
                     ],
                   ),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 4),
                   Text(
                     edificio,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                     style: TextStyle(
                       color: cardTextColor.withValues(alpha: 0.5),
-                      fontSize: 13,
+                      fontSize: 11,
                     ),
                   ),
                 ],

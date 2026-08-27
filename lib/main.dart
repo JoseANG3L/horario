@@ -126,6 +126,7 @@ class _MainAppState extends State<MainApp> {
     required bool notificationsEnabled,
     required int notificationMinutes,
     required ThemeMode themeMode,
+    required TimeFormat timeFormat,
   }) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool('is_setup_done', true);
@@ -147,6 +148,7 @@ class _MainAppState extends State<MainApp> {
           ? 'dark'
           : 'system',
     );
+    await prefs.setString('time_format', timeFormat.name);
 
     // Determinamos el brillo real para calcular el fondo correcto
     final brightness = themeMode == ThemeMode.light

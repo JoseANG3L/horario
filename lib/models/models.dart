@@ -3,6 +3,8 @@ import 'package:horario/utils/theme.dart';
 
 enum DayLabelFormat { full, short, initial }
 
+enum TimeFormat { twelveHour, twentyFourHour }
+
 class Clase {
   final String materia;
   final String profesor;

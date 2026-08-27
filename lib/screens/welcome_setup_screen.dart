@@ -18,6 +18,7 @@ class WelcomeSetupScreen extends StatefulWidget {
     required bool notificationsEnabled,
     required int notificationMinutes,
     required ThemeMode themeMode,
+    required TimeFormat timeFormat,
   })
   onFinishSetup;
 
@@ -47,6 +48,7 @@ class _WelcomeSetupScreenState extends State<WelcomeSetupScreen> {
   bool _notifications = true;
   int _notificationMinutes = 15;
   final List<int> _notificationOptions = [5, 10, 15, 20];
+  TimeFormat _timeFormat = TimeFormat.twentyFourHour;
 
   @override
   void initState() {
@@ -103,7 +105,7 @@ class _WelcomeSetupScreenState extends State<WelcomeSetupScreen> {
   @override
   Widget build(BuildContext context) {
     final currentActiveColor = _activeColor;
-    const totalSteps = 5; // Mantenemos 5 pasos limpios integrando las opciones de calendario juntas
+    const totalSteps = 6; // 6 pasos: tema, color, perfil, formato/semana, formato hora, notificaciones
 
     return Scaffold(
       body: SafeArea(
@@ -136,6 +138,7 @@ class _WelcomeSetupScreenState extends State<WelcomeSetupScreen> {
                     _buildColorStep(),
                     _buildProfileStep(),
                     _buildDayFormatAndStartStep(), // Apartado unificado de formato y semana
+                    _buildTimeFormatStep(), // Nuevo paso para formato de hora
                     _buildNotificationsStep(),
                   ],
                 ),
@@ -186,6 +189,7 @@ class _WelcomeSetupScreenState extends State<WelcomeSetupScreen> {
                           notificationsEnabled: _notifications,
                           notificationMinutes: _notificationMinutes,
                           themeMode: _selectedThemeMode,
+                          timeFormat: _timeFormat,
                         );
                       }
                     },
@@ -457,6 +461,38 @@ class _WelcomeSetupScreenState extends State<WelcomeSetupScreen> {
             icon: LucideIcons.calendarRange,
             isSelected: _weekStart == 0,
             onTap: () => setState(() => _weekStart = 0),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // Nuevo paso: Formato de hora
+  Widget _buildTimeFormatStep() {
+    return SingleChildScrollView(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Formato de hora:',
+            style: Theme.of(context).textTheme.titleSmall
+                ?.copyWith(fontWeight: FontWeight.w600, color: _activeColor),
+          ),
+          const SizedBox(height: 12),
+          _cardOption(
+            title: '24 horas',
+            subtitle: 'Ejemplo: 08:00, 14:30, 20:00',
+            icon: LucideIcons.clock,
+            isSelected: _timeFormat == TimeFormat.twentyFourHour,
+            onTap: () => setState(() => _timeFormat = TimeFormat.twentyFourHour),
+          ),
+          const SizedBox(height: 8),
+          _cardOption(
+            title: '12 horas (AM/PM)',
+            subtitle: 'Ejemplo: 8:00 AM, 2:30 PM, 8:00 PM',
+            icon: LucideIcons.clock,
+            isSelected: _timeFormat == TimeFormat.twelveHour,
+            onTap: () => setState(() => _timeFormat = TimeFormat.twelveHour),
           ),
         ],
       ),

@@ -52,12 +52,13 @@ class DayTabs extends StatelessWidget {
   }
 }
 
-class DaySchedule extends StatelessWidget {
+class DaySchedule extends StatefulWidget {
   final String day;
   final List<Clase> classes;
   final int dayIndex;
   final Function(int, int) onDeleteClass;
   final Function(int, int) onEditClass;
+  final TimeFormat timeFormat;
 
   const DaySchedule({
     super.key,
@@ -66,30 +67,93 @@ class DaySchedule extends StatelessWidget {
     required this.dayIndex,
     required this.onDeleteClass,
     required this.onEditClass,
+    required this.timeFormat,
   });
 
   @override
-  Widget build(BuildContext context) {
-    if (classes.isEmpty) return EmptyDay(day: day);
+  State<DaySchedule> createState() => _DayScheduleState();
+}
 
-    return ListView.separated(
+class _DayScheduleState extends State<DaySchedule> {
+  final GlobalKey<AnimatedListState> _listKey = GlobalKey<AnimatedListState>();
+  late List<Clase> _classes;
+
+  @override
+  void initState() {
+    super.initState();
+    _classes = List.from(widget.classes);
+  }
+
+  @override
+  void didUpdateWidget(DaySchedule oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.classes.length != widget.classes.length) {
+      if (widget.classes.length > oldWidget.classes.length) {
+        // Item added
+        final newIndex = widget.classes.length - 1;
+        _classes.add(widget.classes[newIndex]);
+        _listKey.currentState?.insertItem(newIndex);
+      } else {
+        // Item removed
+        for (int i = 0; i < _classes.length; i++) {
+          if (!widget.classes.contains(_classes[i])) {
+            final removedItem = _classes[i];
+            _listKey.currentState?.removeItem(
+              i,
+              (context, animation) => _buildItem(removedItem, i, animation),
+              duration: const Duration(milliseconds: 300),
+            );
+            _classes.removeAt(i);
+            break;
+          }
+        }
+      }
+    } else {
+      _classes = List.from(widget.classes);
+    }
+  }
+
+  Widget _buildItem(Clase item, int index, Animation<double> animation) {
+    return SizeTransition(
+      sizeFactor: animation,
+      child: FadeTransition(
+        opacity: animation,
+        child: SlideTransition(
+          position: Tween<Offset>(
+            begin: const Offset(0.3, 0),
+            end: Offset.zero,
+          ).animate(animation),
+          child: ClaseCard(
+            materia: item.materia,
+            profesor: item.profesor,
+            nrc: item.nrc,
+            edificio: item.edificio,
+            aula: item.aula,
+            horaInicio: item.horaInicio,
+            horaFin: item.horaFin,
+            letraInicial: item.letraInicial,
+            color: item.color,
+            onDelete: () => widget.onDeleteClass(widget.dayIndex, index),
+            onEdit: () => widget.onEditClass(widget.dayIndex, index),
+            timeFormat: widget.timeFormat,
+          ),
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_classes.isEmpty) return EmptyDay(day: widget.day);
+
+    return AnimatedList(
+      key: _listKey,
       padding: const EdgeInsets.fromLTRB(20, 6, 20, 20),
-      itemCount: classes.length,
-      separatorBuilder: (_, index) => const SizedBox(height: 8),
-      itemBuilder: (context, index) {
-        final item = classes[index];
-        return ClaseCard(
-          materia: item.materia,
-          profesor: item.profesor,
-          nrc: item.nrc,
-          edificio: item.edificio,
-          aula: item.aula,
-          horaInicio: item.horaInicio,
-          horaFin: item.horaFin,
-          letraInicial: item.letraInicial,
-          color: item.color,
-          onDelete: () => onDeleteClass(dayIndex, index),
-          onEdit: () => onEditClass(dayIndex, index),
+      initialItemCount: _classes.length,
+      itemBuilder: (context, index, animation) {
+        return Padding(
+          padding: const EdgeInsets.only(bottom: 8),
+          child: _buildItem(_classes[index], index, animation),
         );
       },
     );
@@ -105,6 +169,7 @@ class ScheduleTab extends StatefulWidget {
   final Function(int) onSelectedDayChanged;
   final Function(int, int) onDeleteClass;
   final Function(int, int) onEditClass;
+  final TimeFormat timeFormat;
 
   const ScheduleTab({
     super.key,
@@ -116,6 +181,7 @@ class ScheduleTab extends StatefulWidget {
     required this.onSelectedDayChanged,
     required this.onDeleteClass,
     required this.onEditClass,
+    required this.timeFormat,
   });
 
   @override
@@ -161,6 +227,7 @@ class _ScheduleTabState extends State<ScheduleTab> {
                   dayIndex: widget.dayIndices[dayIndex],
                   onDeleteClass: widget.onDeleteClass,
                   onEditClass: widget.onEditClass,
+                  timeFormat: widget.timeFormat,
                 ),
               ),
             ),
@@ -472,6 +539,8 @@ class AppearanceSection extends StatefulWidget {
     DayLabelFormat? labelFormat,
   })
   onWeekSettingsChanged;
+  final TimeFormat timeFormat;
+  final Future<void> Function(TimeFormat format) onTimeFormatChanged;
 
   const AppearanceSection({
     super.key,
@@ -491,6 +560,8 @@ class AppearanceSection extends StatefulWidget {
     required this.weekStart,
     required this.dayLabelFormat,
     required this.onWeekSettingsChanged,
+    required this.timeFormat,
+    required this.onTimeFormatChanged,
   });
 
   @override
@@ -501,6 +572,7 @@ class _AppearanceSectionState extends State<AppearanceSection> {
   late bool _showWeekend;
   late int _weekStart;
   late DayLabelFormat _dayLabelFormat;
+  late TimeFormat _timeFormat;
 
   List<String> get _previewDays {
     return const ['Lunes'];
@@ -518,6 +590,7 @@ class _AppearanceSectionState extends State<AppearanceSection> {
     _showWeekend = widget.showWeekend;
     _weekStart = widget.weekStart;
     _dayLabelFormat = widget.dayLabelFormat;
+    _timeFormat = widget.timeFormat;
   }
 
   Widget _cardOption({
@@ -754,6 +827,36 @@ class _AppearanceSectionState extends State<AppearanceSection> {
               },
               primaryColor: primaryColor,
             ),
+            const SizedBox(height: 24),
+            Text(
+              'Formato de hora',
+              style: Theme.of(context).textTheme.titleSmall
+                  ?.copyWith(fontWeight: FontWeight.w600, color: primaryColor),
+            ),
+            const SizedBox(height: 12),
+            _cardOption(
+              title: '24 horas',
+              subtitle: 'Ejemplo: 08:00, 14:30, 20:00',
+              icon: LucideIcons.clock,
+              isSelected: _timeFormat == TimeFormat.twentyFourHour,
+              onTap: () async {
+                setState(() => _timeFormat = TimeFormat.twentyFourHour);
+                await widget.onTimeFormatChanged(TimeFormat.twentyFourHour);
+              },
+              primaryColor: primaryColor,
+            ),
+            const SizedBox(height: 8),
+            _cardOption(
+              title: '12 horas (AM/PM)',
+              subtitle: 'Ejemplo: 8:00 AM, 2:30 PM, 8:00 PM',
+              icon: LucideIcons.clock,
+              isSelected: _timeFormat == TimeFormat.twelveHour,
+              onTap: () async {
+                setState(() => _timeFormat = TimeFormat.twelveHour);
+                await widget.onTimeFormatChanged(TimeFormat.twelveHour);
+              },
+              primaryColor: primaryColor,
+            ),
           ],
         ),
       ],
@@ -769,12 +872,16 @@ class NotificationsSection extends StatefulWidget {
   final bool notificationsEnabled;
   final Color primaryColor;
   final Future<void> Function(bool enabled) onNotificationsChanged;
+  final Future<void> Function(int minutes) onNotificationMinutesChanged;
+  final int initialNotificationMinutes;
 
   const NotificationsSection({
     super.key,
     required this.notificationsEnabled,
     required this.primaryColor,
     required this.onNotificationsChanged,
+    required this.onNotificationMinutesChanged,
+    required this.initialNotificationMinutes,
   });
 
   @override
@@ -791,7 +898,7 @@ class _NotificationsSectionState extends State<NotificationsSection> {
   void initState() {
     super.initState();
     _notificationsEnabled = widget.notificationsEnabled;
-    _notificationMinutes = 15;
+    _notificationMinutes = widget.initialNotificationMinutes;
   }
 
   Future<void> _toggleNotifications(bool value) async {
@@ -922,7 +1029,10 @@ class _NotificationsSectionState extends State<NotificationsSection> {
               icon: LucideIcons.clock,
               isSelected: isSelected,
               onTap: _notificationsEnabled
-                  ? () => setState(() => _notificationMinutes = minutes)
+                  ? () async {
+                      setState(() => _notificationMinutes = minutes);
+                      await widget.onNotificationMinutesChanged(minutes);
+                    }
                   : () {},
               primaryColor: primaryColor,
             ),
