@@ -58,6 +58,11 @@ class DaySchedule extends StatefulWidget {
   final int dayIndex;
   final Function(int, int) onDeleteClass;
   final Function(int, int) onEditClass;
+  final Function(String) onTeacherTap;
+  final Function(String) onAulaTap;
+  final Function(String) onEdificioTap;
+  final Function(String) onMateriaTap;
+  final Function(String) onNrcTap;
   final TimeFormat timeFormat;
 
   const DaySchedule({
@@ -67,6 +72,11 @@ class DaySchedule extends StatefulWidget {
     required this.dayIndex,
     required this.onDeleteClass,
     required this.onEditClass,
+    required this.onTeacherTap,
+    required this.onAulaTap,
+    required this.onEdificioTap,
+    required this.onMateriaTap,
+    required this.onNrcTap,
     required this.timeFormat,
   });
 
@@ -135,6 +145,11 @@ class _DayScheduleState extends State<DaySchedule> {
             color: item.color,
             onDelete: () => widget.onDeleteClass(widget.dayIndex, index),
             onEdit: () => widget.onEditClass(widget.dayIndex, index),
+            onTeacherTap: () => widget.onTeacherTap(item.profesor),
+            onAulaTap: () => widget.onAulaTap(item.aula),
+            onEdificioTap: () => widget.onEdificioTap(item.edificio),
+            onMateriaTap: () => widget.onMateriaTap(item.materia),
+            onNrcTap: () => widget.onNrcTap(item.nrc),
             timeFormat: widget.timeFormat,
           ),
         ),
@@ -169,6 +184,11 @@ class ScheduleTab extends StatefulWidget {
   final Function(int) onSelectedDayChanged;
   final Function(int, int) onDeleteClass;
   final Function(int, int) onEditClass;
+  final Function(String) onTeacherTap;
+  final Function(String) onAulaTap;
+  final Function(String) onEdificioTap;
+  final Function(String) onMateriaTap;
+  final Function(String) onNrcTap;
   final TimeFormat timeFormat;
 
   const ScheduleTab({
@@ -181,6 +201,11 @@ class ScheduleTab extends StatefulWidget {
     required this.onSelectedDayChanged,
     required this.onDeleteClass,
     required this.onEditClass,
+    required this.onTeacherTap,
+    required this.onAulaTap,
+    required this.onEdificioTap,
+    required this.onMateriaTap,
+    required this.onNrcTap,
     required this.timeFormat,
   });
 
@@ -227,6 +252,11 @@ class _ScheduleTabState extends State<ScheduleTab> {
                   dayIndex: widget.dayIndices[dayIndex],
                   onDeleteClass: widget.onDeleteClass,
                   onEditClass: widget.onEditClass,
+                  onTeacherTap: widget.onTeacherTap,
+                  onAulaTap: widget.onAulaTap,
+                  onEdificioTap: widget.onEdificioTap,
+                  onMateriaTap: widget.onMateriaTap,
+                  onNrcTap: widget.onNrcTap,
                   timeFormat: widget.timeFormat,
                 ),
               ),
@@ -1039,6 +1069,887 @@ class _NotificationsSectionState extends State<NotificationsSection> {
           );
         }),
       ],
+    );
+  }
+}
+
+// ==========================================
+// 6. PESTAÑA: MAESTROS
+// ==========================================
+
+class MaestrosTab extends StatefulWidget {
+  final List<Maestro> maestros;
+  final Function(Maestro) onAddMaestro;
+  final Function(int) onDeleteMaestro;
+  final Color primaryColor;
+
+  const MaestrosTab({
+    super.key,
+    required this.maestros,
+    required this.onAddMaestro,
+    required this.onDeleteMaestro,
+    required this.primaryColor,
+  });
+
+  @override
+  State<MaestrosTab> createState() => _MaestrosTabState();
+}
+
+class _MaestrosTabState extends State<MaestrosTab> {
+  @override
+  Widget build(BuildContext context) {
+    if (widget.maestros.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              LucideIcons.users,
+              size: 64,
+              color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.2),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'Sin maestros',
+              style: Theme.of(context).textTheme.titleLarge,
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Agrega tus maestros para verlos aquí',
+              style: TextStyle(
+                color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.54),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return ListView.separated(
+      padding: const EdgeInsets.all(20),
+      itemCount: widget.maestros.length,
+      separatorBuilder: (_, __) => const SizedBox(height: 12),
+      itemBuilder: (context, index) {
+        final maestro = widget.maestros[index];
+        return MaestroCard(
+          maestro: maestro,
+          onTap: () => _showMaestroDetail(maestro),
+          onDelete: () => widget.onDeleteMaestro(index),
+          primaryColor: widget.primaryColor,
+        );
+      },
+    );
+  }
+
+  void _showMaestroDetail(Maestro maestro) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (context) => MaestroDetailSheet(
+        maestro: maestro,
+        primaryColor: widget.primaryColor,
+      ),
+    );
+  }
+}
+
+class MaestroCard extends StatelessWidget {
+  final Maestro maestro;
+  final VoidCallback onTap;
+  final VoidCallback onDelete;
+  final Color primaryColor;
+
+  const MaestroCard({
+    super.key,
+    required this.maestro,
+    required this.onTap,
+    required this.onDelete,
+    required this.primaryColor,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(16),
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Theme.of(context).colorScheme.surface,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.12),
+          ),
+        ),
+        child: Row(
+          children: [
+            CircleAvatar(
+              radius: 28,
+              backgroundColor: primaryColor.withValues(alpha: 0.1),
+              child: maestro.imagenUrl != null
+                  ? ClipOval(
+                      child: Image.network(
+                        maestro.imagenUrl!,
+                        width: 56,
+                        height: 56,
+                        fit: BoxFit.cover,
+                        errorBuilder: (context, error, stackTrace) {
+                          return Text(
+                            maestro.nombre.substring(0, 1).toUpperCase(),
+                            style: TextStyle(
+                              color: primaryColor,
+                              fontSize: 24,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          );
+                        },
+                      ),
+                    )
+                  : Text(
+                      maestro.nombre.substring(0, 1).toUpperCase(),
+                      style: TextStyle(
+                        color: primaryColor,
+                        fontSize: 24,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    maestro.nombre,
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    maestro.correo,
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            IconButton(
+              icon: const Icon(LucideIcons.trash2, color: Colors.red),
+              onPressed: onDelete,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class MaestroDetailSheet extends StatelessWidget {
+  final Maestro maestro;
+  final Color primaryColor;
+
+  const MaestroDetailSheet({
+    super.key,
+    required this.maestro,
+    required this.primaryColor,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surface,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            margin: const EdgeInsets.only(top: 12),
+            width: 40,
+            height: 4,
+            decoration: BoxDecoration(
+              color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.2),
+              borderRadius: BorderRadius.circular(2),
+            ),
+          ),
+          const SizedBox(height: 20),
+          CircleAvatar(
+            radius: 48,
+            backgroundColor: primaryColor.withValues(alpha: 0.1),
+            child: maestro.imagenUrl != null
+                ? ClipOval(
+                    child: Image.network(
+                      maestro.imagenUrl!,
+                      width: 96,
+                      height: 96,
+                      fit: BoxFit.cover,
+                      errorBuilder: (context, error, stackTrace) {
+                        return Text(
+                          maestro.nombre.substring(0, 1).toUpperCase(),
+                          style: TextStyle(
+                            color: primaryColor,
+                            fontSize: 40,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        );
+                      },
+                    ),
+                  )
+                : Text(
+                    maestro.nombre.substring(0, 1).toUpperCase(),
+                    style: TextStyle(
+                      color: primaryColor,
+                      fontSize: 40,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+          ),
+          const SizedBox(height: 16),
+          Text(
+            maestro.nombre,
+            style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const SizedBox(height: 24),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            child: Column(
+              children: [
+                _DetailRow(
+                  icon: LucideIcons.mail,
+                  label: 'Correo',
+                  value: maestro.correo,
+                  primaryColor: primaryColor,
+                ),
+                const SizedBox(height: 16),
+                _DetailRow(
+                  icon: LucideIcons.phone,
+                  label: 'Teléfono',
+                  value: maestro.telefono,
+                  primaryColor: primaryColor,
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 20),
+        ],
+      ),
+    );
+  }
+}
+
+class _DetailRow extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final String value;
+  final Color primaryColor;
+
+  const _DetailRow({
+    required this.icon,
+    required this.label,
+    required this.value,
+    required this.primaryColor,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Icon(icon, color: primaryColor, size: 20),
+        const SizedBox(width: 12),
+        Text(
+          '$label: ',
+          style: TextStyle(
+            color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
+          ),
+        ),
+        Expanded(
+          child: Text(
+            value,
+            style: const TextStyle(fontWeight: FontWeight.w500),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+// ==========================================
+// 6. PESTAÑA: SALONES
+// ==========================================
+
+class SalonesTab extends StatefulWidget {
+  final List<Salon> salones;
+  final Function(Salon) onAddSalon;
+  final Function(int) onDeleteSalon;
+  final Color primaryColor;
+
+  const SalonesTab({
+    super.key,
+    required this.salones,
+    required this.onAddSalon,
+    required this.onDeleteSalon,
+    required this.primaryColor,
+  });
+
+  @override
+  State<SalonesTab> createState() => _SalonesTabState();
+}
+
+class _SalonesTabState extends State<SalonesTab> {
+  @override
+  Widget build(BuildContext context) {
+    if (widget.salones.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              LucideIcons.doorOpen,
+              size: 64,
+              color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.3),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'No hay salones',
+              style: TextStyle(
+                color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
+                fontSize: 16,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Agrega salones para ver su información',
+              style: TextStyle(
+                color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.4),
+                fontSize: 13,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return ListView.builder(
+      padding: const EdgeInsets.all(20),
+      itemCount: widget.salones.length,
+      itemBuilder: (context, index) {
+        final salon = widget.salones[index];
+        return Padding(
+          padding: const EdgeInsets.only(bottom: 12),
+          child: SalonCard(
+            salon: salon,
+            primaryColor: widget.primaryColor,
+            onTap: () => _showSalonDetail(salon),
+            onDelete: () => widget.onDeleteSalon(index),
+          ),
+        );
+      },
+    );
+  }
+
+  void _showSalonDetail(Salon salon) {
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      builder: (context) => SalonDetailSheet(
+        salon: salon,
+        primaryColor: widget.primaryColor,
+      ),
+    );
+  }
+}
+
+class SalonCard extends StatelessWidget {
+  final Salon salon;
+  final Color primaryColor;
+  final VoidCallback onTap;
+  final VoidCallback onDelete;
+
+  const SalonCard({
+    super.key,
+    required this.salon,
+    required this.primaryColor,
+    required this.onTap,
+    required this.onDelete,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final brightness = Theme.of(context).brightness;
+    final cardColor = brightness == Brightness.light
+        ? Colors.white
+        : Theme.of(context).colorScheme.surface.withValues(alpha: 0.3);
+    final textColor = brightness == Brightness.light
+        ? Colors.black87
+        : Colors.white;
+
+    return Material(
+      color: cardColor,
+      borderRadius: BorderRadius.circular(16),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(16),
+        child: Container(
+          padding: const EdgeInsets.all(16),
+          child: Row(
+            children: [
+              Container(
+                width: 50,
+                height: 50,
+                decoration: BoxDecoration(
+                  color: primaryColor.withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(
+                  LucideIcons.doorOpen,
+                  color: primaryColor,
+                  size: 24,
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      salon.nombre,
+                      style: TextStyle(
+                        color: textColor,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      salon.edificio,
+                      style: TextStyle(
+                        color: textColor.withValues(alpha: 0.6),
+                        fontSize: 13,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              IconButton(
+                onPressed: onDelete,
+                icon: Icon(
+                  LucideIcons.trash2,
+                  color: textColor.withValues(alpha: 0.5),
+                  size: 20,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class SalonDetailSheet extends StatelessWidget {
+  final Salon salon;
+  final Color primaryColor;
+
+  const SalonDetailSheet({
+    super.key,
+    required this.salon,
+    required this.primaryColor,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: EdgeInsets.only(
+        top: 20,
+        bottom: MediaQuery.viewInsetsOf(context).bottom,
+      ),
+      decoration: BoxDecoration(
+        color: Theme.of(context).scaffoldBackgroundColor,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 40,
+            height: 4,
+            margin: const EdgeInsets.only(bottom: 20),
+            decoration: BoxDecoration(
+              color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.2),
+              borderRadius: BorderRadius.circular(2),
+            ),
+          ),
+          if (salon.imagenUrl != null) ...[
+            ClipRRect(
+              borderRadius: BorderRadius.circular(16),
+              child: Image.network(
+                salon.imagenUrl!,
+                height: 200,
+                width: double.infinity,
+                fit: BoxFit.cover,
+                errorBuilder: (context, error, stackTrace) => Container(
+                  height: 200,
+                  color: primaryColor.withValues(alpha: 0.1),
+                  child: Icon(
+                    LucideIcons.image,
+                    size: 48,
+                    color: primaryColor.withValues(alpha: 0.5),
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 20),
+          ],
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  salon.nombre,
+                  style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                    fontWeight: FontWeight.w800,
+                    color: primaryColor,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  salon.edificio,
+                  style: TextStyle(
+                    color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
+                  ),
+                ),
+                const SizedBox(height: 24),
+                _DetailRow(
+                  icon: LucideIcons.mapPin,
+                  label: 'Ubicación',
+                  value: salon.ubicacion,
+                  primaryColor: primaryColor,
+                ),
+                const SizedBox(height: 16),
+                _DetailRow(
+                  icon: LucideIcons.users,
+                  label: 'Capacidad',
+                  value: '${salon.capacidad} personas',
+                  primaryColor: primaryColor,
+                ),
+                if (salon.referencias != null) ...[
+                  const SizedBox(height: 16),
+                  _DetailRow(
+                    icon: LucideIcons.info,
+                    label: 'Referencias',
+                    value: salon.referencias!,
+                    primaryColor: primaryColor,
+                  ),
+                ],
+                const SizedBox(height: 20),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ==========================================
+// 7. PESTAÑA: EDIFICIOS
+// ==========================================
+
+class EdificiosTab extends StatefulWidget {
+  final List<Edificio> edificios;
+  final Function(Edificio) onAddEdificio;
+  final Function(int) onDeleteEdificio;
+  final Color primaryColor;
+
+  const EdificiosTab({
+    super.key,
+    required this.edificios,
+    required this.onAddEdificio,
+    required this.onDeleteEdificio,
+    required this.primaryColor,
+  });
+
+  @override
+  State<EdificiosTab> createState() => _EdificiosTabState();
+}
+
+class _EdificiosTabState extends State<EdificiosTab> {
+  @override
+  Widget build(BuildContext context) {
+    if (widget.edificios.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              LucideIcons.building2,
+              size: 64,
+              color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.3),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'No hay edificios',
+              style: TextStyle(
+                color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
+                fontSize: 16,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Agrega edificios para ver sus salones',
+              style: TextStyle(
+                color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.4),
+                fontSize: 13,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return ListView.builder(
+      padding: const EdgeInsets.all(20),
+      itemCount: widget.edificios.length,
+      itemBuilder: (context, index) {
+        final edificio = widget.edificios[index];
+        return Padding(
+          padding: const EdgeInsets.only(bottom: 12),
+          child: EdificioCard(
+            edificio: edificio,
+            primaryColor: widget.primaryColor,
+            onTap: () => _showEdificioDetail(edificio),
+            onDelete: () => widget.onDeleteEdificio(index),
+          ),
+        );
+      },
+    );
+  }
+
+  void _showEdificioDetail(Edificio edificio) {
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      builder: (context) => EdificioDetailSheet(
+        edificio: edificio,
+        primaryColor: widget.primaryColor,
+      ),
+    );
+  }
+}
+
+class EdificioCard extends StatelessWidget {
+  final Edificio edificio;
+  final Color primaryColor;
+  final VoidCallback onTap;
+  final VoidCallback onDelete;
+
+  const EdificioCard({
+    super.key,
+    required this.edificio,
+    required this.primaryColor,
+    required this.onTap,
+    required this.onDelete,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final brightness = Theme.of(context).brightness;
+    final cardColor = brightness == Brightness.light
+        ? Colors.white
+        : Theme.of(context).colorScheme.surface.withValues(alpha: 0.3);
+    final textColor = brightness == Brightness.light
+        ? Colors.black87
+        : Colors.white;
+
+    return Material(
+      color: cardColor,
+      borderRadius: BorderRadius.circular(16),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(16),
+        child: Container(
+          padding: const EdgeInsets.all(16),
+          child: Row(
+            children: [
+              Container(
+                width: 50,
+                height: 50,
+                decoration: BoxDecoration(
+                  color: primaryColor.withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(
+                  LucideIcons.building2,
+                  color: primaryColor,
+                  size: 24,
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      edificio.nombre,
+                      style: TextStyle(
+                        color: textColor,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      '${edificio.salones.length} salones',
+                      style: TextStyle(
+                        color: textColor.withValues(alpha: 0.6),
+                        fontSize: 13,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              IconButton(
+                onPressed: onDelete,
+                icon: Icon(
+                  LucideIcons.trash2,
+                  color: textColor.withValues(alpha: 0.5),
+                  size: 20,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class EdificioDetailSheet extends StatelessWidget {
+  final Edificio edificio;
+  final Color primaryColor;
+
+  const EdificioDetailSheet({
+    super.key,
+    required this.edificio,
+    required this.primaryColor,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: EdgeInsets.only(
+        top: 20,
+        bottom: MediaQuery.viewInsetsOf(context).bottom,
+      ),
+      decoration: BoxDecoration(
+        color: Theme.of(context).scaffoldBackgroundColor,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 40,
+            height: 4,
+            margin: const EdgeInsets.only(bottom: 20),
+            decoration: BoxDecoration(
+              color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.2),
+              borderRadius: BorderRadius.circular(2),
+            ),
+          ),
+          if (edificio.imagenUrl != null) ...[
+            ClipRRect(
+              borderRadius: BorderRadius.circular(16),
+              child: Image.network(
+                edificio.imagenUrl!,
+                height: 200,
+                width: double.infinity,
+                fit: BoxFit.cover,
+                errorBuilder: (context, error, stackTrace) => Container(
+                  height: 200,
+                  color: primaryColor.withValues(alpha: 0.1),
+                  child: Icon(
+                    LucideIcons.image,
+                    size: 48,
+                    color: primaryColor.withValues(alpha: 0.5),
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 20),
+          ],
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  edificio.nombre,
+                  style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                    fontWeight: FontWeight.w800,
+                    color: primaryColor,
+                  ),
+                ),
+                if (edificio.descripcion != null) ...[
+                  const SizedBox(height: 8),
+                  Text(
+                    edificio.descripcion!,
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
+                    ),
+                  ),
+                ],
+                const SizedBox(height: 24),
+                Text(
+                  'Salones (${edificio.salones.length})',
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w700,
+                    color: primaryColor,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: edificio.salones.map((salon) {
+                    return Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: primaryColor.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(
+                          color: primaryColor.withValues(alpha: 0.3),
+                        ),
+                      ),
+                      child: Text(
+                        salon,
+                        style: TextStyle(
+                          color: primaryColor,
+                          fontWeight: FontWeight.w600,
+                          fontSize: 13,
+                        ),
+                      ),
+                    );
+                  }).toList(),
+                ),
+                const SizedBox(height: 20),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

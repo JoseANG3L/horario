@@ -74,7 +74,7 @@ class HorarioScreenState extends State<HorarioScreen>
     with TickerProviderStateMixin {
   late TabController _tabController;
   int _selectedDay = 0;
-  int _selectedTab = 0; // 0 = Horario, 1 = Materias Guardadas
+  int _selectedTab = 0; // 0 = Horario, 1 = Materias Guardadas, 2 = Maestros, 3 = Salones, 4 = Edificios
   bool _notificationsEnabled = false;
   bool _showWeekend = true;
   int _weekStart = 1;
@@ -93,6 +93,9 @@ class HorarioScreenState extends State<HorarioScreen>
   ];
   final List<List<Clase>> _classesByDay = [[], [], [], [], [], [], []];
   final List<MateriaGuardada> _materiasGuardadas = [];
+  final List<Maestro> _maestros = [];
+  final List<Salon> _salones = [];
+  final List<Edificio> _edificios = [];
 
   List<int> get _visibleDayIndices {
     final indices = List.generate(7, (offset) => (_weekStart + offset) % 7);
@@ -168,6 +171,9 @@ class HorarioScreenState extends State<HorarioScreen>
     if (_materiasGuardadas.isEmpty) {
       await _addSampleSavedSubjects();
     }
+    await _loadMaestros();
+    await _loadSalones();
+    await _loadEdificios();
     if (mounted) setState(() {});
 
     setState(() {
@@ -206,21 +212,6 @@ class HorarioScreenState extends State<HorarioScreen>
       final day = _visibleDayIndices[_tabController.index];
       if (_selectedDay != day) setState(() => _selectedDay = day);
     }
-  }
-
-  Future<void> _updateWeekSettings({
-    bool? showWeekend,
-    int? weekStart,
-    DayLabelFormat? labelFormat,
-  }) async {
-    _showWeekend = showWeekend ?? _showWeekend;
-    _weekStart = weekStart ?? _weekStart;
-    _dayLabelFormat = labelFormat ?? _dayLabelFormat;
-    _replaceTabController();
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool('show_weekend', _showWeekend);
-    await prefs.setInt('week_start', _weekStart);
-    await prefs.setString('day_label_format', _dayLabelFormat.name);
   }
 
   String _formatDay(String day) {
@@ -460,22 +451,6 @@ class HorarioScreenState extends State<HorarioScreen>
     }
   }
 
-  Future<void> _setNotificationMinutes(int minutes) async {
-    final prefs = await SharedPreferences.getInstance();
-    setState(() => _notificationMinutes = minutes);
-    await prefs.setInt('notification_minutes', minutes);
-
-    if (_notificationsEnabled) {
-      await _scheduleNextClassNotification();
-    }
-  }
-
-  Future<void> _setTimeFormat(TimeFormat format) async {
-    final prefs = await SharedPreferences.getInstance();
-    setState(() => _timeFormat = format);
-    await prefs.setString('time_format', format.name);
-  }
-
   String _formatTimeForNotification(String time24) {
     if (_timeFormat == TimeFormat.twentyFourHour) {
       return time24;
@@ -699,9 +674,22 @@ class HorarioScreenState extends State<HorarioScreen>
                 },
               ),
               ListTile(
-                leading: Icon(LucideIcons.palette, color: widget.menuTextColor),
+                leading: Icon(LucideIcons.users, color: widget.menuTextColor),
                 title: Text(
-                  'Personalizar',
+                  'Maestros',
+                  style: TextStyle(color: widget.menuTextColor),
+                ),
+                selected: _selectedTab == 2,
+                selectedTileColor: widget.menuTextColor.withValues(alpha: 0.05),
+                onTap: () {
+                  setState(() => _selectedTab = 2);
+                  Navigator.pop(context);
+                },
+              ),
+              ListTile(
+                leading: Icon(LucideIcons.doorOpen, color: widget.menuTextColor),
+                title: Text(
+                  'Salones',
                   style: TextStyle(color: widget.menuTextColor),
                 ),
                 selected: _selectedTab == 3,
@@ -712,15 +700,54 @@ class HorarioScreenState extends State<HorarioScreen>
                 },
               ),
               ListTile(
-                leading: Icon(LucideIcons.bell, color: widget.menuTextColor),
+                leading: Icon(LucideIcons.building2, color: widget.menuTextColor),
                 title: Text(
-                  'Notificaciones',
+                  'Edificios',
                   style: TextStyle(color: widget.menuTextColor),
                 ),
                 selected: _selectedTab == 4,
                 selectedTileColor: widget.menuTextColor.withValues(alpha: 0.05),
                 onTap: () {
                   setState(() => _selectedTab = 4);
+                  Navigator.pop(context);
+                },
+              ),
+              ListTile(
+                leading: Icon(LucideIcons.user, color: widget.menuTextColor),
+                title: Text(
+                  'Perfil',
+                  style: TextStyle(color: widget.menuTextColor),
+                ),
+                selected: _selectedTab == 5,
+                selectedTileColor: widget.menuTextColor.withValues(alpha: 0.05),
+                onTap: () {
+                  setState(() => _selectedTab = 5);
+                  Navigator.pop(context);
+                },
+              ),
+              ListTile(
+                leading: Icon(LucideIcons.palette, color: widget.menuTextColor),
+                title: Text(
+                  'Personalizar',
+                  style: TextStyle(color: widget.menuTextColor),
+                ),
+                selected: _selectedTab == 6,
+                selectedTileColor: widget.menuTextColor.withValues(alpha: 0.05),
+                onTap: () {
+                  setState(() => _selectedTab = 6);
+                  Navigator.pop(context);
+                },
+              ),
+              ListTile(
+                leading: Icon(LucideIcons.bell, color: widget.menuTextColor),
+                title: Text(
+                  'Notificaciones',
+                  style: TextStyle(color: widget.menuTextColor),
+                ),
+                selected: _selectedTab == 7,
+                selectedTileColor: widget.menuTextColor.withValues(alpha: 0.05),
+                onTap: () {
+                  setState(() => _selectedTab = 7);
                   Navigator.pop(context);
                 },
               ),
@@ -741,6 +768,11 @@ class HorarioScreenState extends State<HorarioScreen>
                 },
                 onDeleteClass: _deleteClass,
                 onEditClass: _editClass,
+                onTeacherTap: _showTeacherDetail,
+                onAulaTap: _showSalonDetail,
+                onEdificioTap: _showEdificioDetail,
+                onMateriaTap: _showMateriaDetail,
+                onNrcTap: _showNrcDetail,
                 timeFormat: _timeFormat,
               )
             : _selectedTab == 1
@@ -753,6 +785,27 @@ class HorarioScreenState extends State<HorarioScreen>
                 onEdit: _editMateriaGuardada,
               )
             : _selectedTab == 2
+            ? MaestrosTab(
+                maestros: _maestros,
+                onAddMaestro: _addMaestro,
+                onDeleteMaestro: _deleteMaestro,
+                primaryColor: widget.primaryColor,
+              )
+            : _selectedTab == 3
+            ? SalonesTab(
+                salones: _salones,
+                onAddSalon: _addSalon,
+                onDeleteSalon: _deleteSalon,
+                primaryColor: widget.primaryColor,
+              )
+            : _selectedTab == 4
+            ? EdificiosTab(
+                edificios: _edificios,
+                onAddEdificio: _addEdificio,
+                onDeleteEdificio: _deleteEdificio,
+                primaryColor: widget.primaryColor,
+              )
+            : _selectedTab == 5
             ? ProfileSection(
                 profileName: widget.profileName,
                 profileDetail: widget.profileDetail,
@@ -762,7 +815,7 @@ class HorarioScreenState extends State<HorarioScreen>
                 themeMode: widget.themeMode,
                 onProfileChanged: widget.onProfileChanged,
               )
-            : _selectedTab == 3
+            : _selectedTab == 6
             ? AppearanceSection(
                 colorOptions: widget.colorOptions,
                 primaryColor: widget.primaryColor,
@@ -781,30 +834,207 @@ class HorarioScreenState extends State<HorarioScreen>
                 showWeekend: _showWeekend,
                 weekStart: _weekStart,
                 dayLabelFormat: _dayLabelFormat,
-                onWeekSettingsChanged: _updateWeekSettings,
+                onWeekSettingsChanged: ({showWeekend, weekStart, labelFormat}) async {
+                  if (showWeekend != null) {
+                    setState(() => _showWeekend = showWeekend);
+                    final prefs = await SharedPreferences.getInstance();
+                    await prefs.setBool('show_weekend', showWeekend);
+                    _replaceTabController();
+                  }
+                  if (weekStart != null) {
+                    setState(() => _weekStart = weekStart);
+                    final prefs = await SharedPreferences.getInstance();
+                    await prefs.setInt('week_start', weekStart);
+                    _replaceTabController();
+                  }
+                  if (labelFormat != null) {
+                    setState(() => _dayLabelFormat = labelFormat);
+                    final prefs = await SharedPreferences.getInstance();
+                    await prefs.setString('day_label_format', labelFormat.name);
+                  }
+                },
                 timeFormat: _timeFormat,
-                onTimeFormatChanged: _setTimeFormat,
+                onTimeFormatChanged: (format) async {
+                  setState(() => _timeFormat = format);
+                  final prefs = await SharedPreferences.getInstance();
+                  await prefs.setString('time_format', format.name);
+                },
               )
-            : NotificationsSection(
+            : _selectedTab == 7
+            ? NotificationsSection(
                 notificationsEnabled: _notificationsEnabled,
-                onNotificationsChanged: _toggleNotifications,
-                onNotificationMinutesChanged: _setNotificationMinutes,
-                initialNotificationMinutes: _notificationMinutes,
                 primaryColor: widget.primaryColor,
-              ),
+                onNotificationsChanged: _toggleNotifications,
+                onNotificationMinutesChanged: (minutes) async {
+                  setState(() => _notificationMinutes = minutes);
+                  final prefs = await SharedPreferences.getInstance();
+                  await prefs.setInt('notification_minutes', minutes);
+                  if (_notificationsEnabled) {
+                    await _scheduleNextClassNotification();
+                  }
+                },
+                initialNotificationMinutes: _notificationMinutes,
+              )
+            : const SizedBox.shrink(),
       ),
-      floatingActionButton: (_selectedTab == 0 || _selectedTab == 1)
+      floatingActionButton: (_selectedTab == 0 || _selectedTab == 1 || _selectedTab == 2 || _selectedTab == 3 || _selectedTab == 4)
           ? FloatingActionButton(
               onPressed: _selectedTab == 0
                   ? _openAddClassSheet
-                  : _openSaveMateriaSheet,
+                  : _selectedTab == 1
+                      ? _openSaveMateriaSheet
+                      : _selectedTab == 2
+                          ? _openAddMaestroSheet
+                          : _selectedTab == 3
+                              ? _openAddSalonSheet
+                              : _openAddEdificioSheet,
               backgroundColor: widget.primaryColor,
               foregroundColor: defaultTextColor(widget.primaryColor),
               child: Icon(
-                _selectedTab == 0 ? LucideIcons.plus : LucideIcons.bookmarkPlus,
+                _selectedTab == 0
+                    ? LucideIcons.plus
+                    : _selectedTab == 1
+                        ? LucideIcons.bookmarkPlus
+                        : _selectedTab == 2
+                            ? LucideIcons.userPlus
+                            : _selectedTab == 3
+                                ? LucideIcons.doorOpen
+                                : LucideIcons.building2,
               ),
             )
           : null,
+    );
+  }
+
+  void _addMaestro(Maestro maestro) {
+    setState(() => _maestros.add(maestro));
+    _saveMaestros();
+  }
+
+  void _deleteMaestro(int index) {
+    setState(() => _maestros.removeAt(index));
+    _saveMaestros();
+  }
+
+  Future<void> _saveMaestros() async {
+    final prefs = await SharedPreferences.getInstance();
+    final maestrosJson = _maestros.map((m) => jsonEncode(m.toJson())).toList();
+    await prefs.setStringList('maestros', maestrosJson);
+  }
+
+  Future<void> _loadMaestros() async {
+    final prefs = await SharedPreferences.getInstance();
+    final maestrosJson = prefs.getStringList('maestros');
+    if (maestrosJson != null) {
+      setState(() {
+        _maestros.clear();
+        _maestros.addAll(
+          maestrosJson.map((json) => Maestro.fromJson(jsonDecode(json))),
+        );
+      });
+    }
+  }
+
+  void _addSalon(Salon salon) {
+    setState(() => _salones.add(salon));
+    _saveSalones();
+  }
+
+  void _deleteSalon(int index) {
+    setState(() => _salones.removeAt(index));
+    _saveSalones();
+  }
+
+  Future<void> _saveSalones() async {
+    final prefs = await SharedPreferences.getInstance();
+    final salonesJson = _salones.map((s) => jsonEncode(s.toJson())).toList();
+    await prefs.setStringList('salones', salonesJson);
+  }
+
+  Future<void> _loadSalones() async {
+    final prefs = await SharedPreferences.getInstance();
+    final salonesJson = prefs.getStringList('salones');
+    if (salonesJson != null) {
+      setState(() {
+        _salones.clear();
+        _salones.addAll(
+          salonesJson.map((json) => Salon.fromJson(jsonDecode(json))),
+        );
+      });
+    }
+  }
+
+  void _addEdificio(Edificio edificio) {
+    setState(() => _edificios.add(edificio));
+    _saveEdificios();
+  }
+
+  void _deleteEdificio(int index) {
+    setState(() => _edificios.removeAt(index));
+    _saveEdificios();
+  }
+
+  Future<void> _saveEdificios() async {
+    final prefs = await SharedPreferences.getInstance();
+    final edificiosJson = _edificios.map((e) => jsonEncode(e.toJson())).toList();
+    await prefs.setStringList('edificios', edificiosJson);
+  }
+
+  Future<void> _loadEdificios() async {
+    final prefs = await SharedPreferences.getInstance();
+    final edificiosJson = prefs.getStringList('edificios');
+    if (edificiosJson != null) {
+      setState(() {
+        _edificios.clear();
+        _edificios.addAll(
+          edificiosJson.map((json) => Edificio.fromJson(jsonDecode(json))),
+        );
+      });
+    }
+  }
+
+  Future<void> _openAddSalonSheet() async {
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      backgroundColor: widget.screenBackgroundColor,
+      builder: (context) => AddSalonSheet(
+        primaryColor: widget.primaryColor,
+        onSave: (salon) async {
+          _addSalon(salon);
+        },
+      ),
+    );
+  }
+
+  Future<void> _openAddEdificioSheet() async {
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      backgroundColor: widget.screenBackgroundColor,
+      builder: (context) => AddEdificioSheet(
+        primaryColor: widget.primaryColor,
+        onSave: (edificio) async {
+          _addEdificio(edificio);
+        },
+      ),
+    );
+  }
+
+  Future<void> _openAddMaestroSheet() async {
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      backgroundColor: widget.screenBackgroundColor,
+      builder: (context) => AddMaestroSheet(
+        primaryColor: widget.primaryColor,
+        onSave: (maestro) async {
+          _addMaestro(maestro);
+        },
+      ),
     );
   }
 
@@ -830,6 +1060,84 @@ class HorarioScreenState extends State<HorarioScreen>
           _tabController.animateTo(day);
         },
       ),
+    );
+  }
+
+  void _showTeacherDetail(String teacherName) {
+    final maestro = _maestros.firstWhere(
+      (m) => m.nombre.toLowerCase() == teacherName.toLowerCase(),
+      orElse: () => Maestro(
+        nombre: teacherName,
+        correo: '',
+        telefono: '',
+        imagenUrl: null,
+      ),
+    );
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      backgroundColor: widget.screenBackgroundColor,
+      builder: (context) => MaestroDetailSheet(
+        maestro: maestro,
+        primaryColor: widget.primaryColor,
+      ),
+    );
+  }
+
+  void _showSalonDetail(String salonName) {
+    final salon = _salones.firstWhere(
+      (s) => s.nombre.toLowerCase() == salonName.toLowerCase(),
+      orElse: () => Salon(
+        nombre: salonName,
+        edificio: '',
+        ubicacion: '',
+        imagenUrl: null,
+      ),
+    );
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      backgroundColor: widget.screenBackgroundColor,
+      builder: (context) => SalonDetailSheet(
+        salon: salon,
+        primaryColor: widget.primaryColor,
+      ),
+    );
+  }
+
+  void _showEdificioDetail(String edificioName) {
+    final edificio = _edificios.firstWhere(
+      (e) => e.nombre.toLowerCase() == edificioName.toLowerCase(),
+      orElse: () => Edificio(
+        nombre: edificioName,
+        imagenUrl: null,
+        descripcion: null,
+        salones: [],
+      ),
+    );
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      backgroundColor: widget.screenBackgroundColor,
+      builder: (context) => EdificioDetailSheet(
+        edificio: edificio,
+        primaryColor: widget.primaryColor,
+      ),
+    );
+  }
+
+  void _showMateriaDetail(String materiaName) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Materia: $materiaName')),
+    );
+  }
+
+  void _showNrcDetail(String nrc) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('NRC: $nrc')),
     );
   }
 }

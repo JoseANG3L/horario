@@ -18,6 +18,11 @@ class ClaseCard extends StatelessWidget {
   final VoidCallback onDelete;
   final VoidCallback onEdit;
   final VoidCallback? onAddToSchedule;
+  final VoidCallback? onTeacherTap;
+  final VoidCallback? onMateriaTap;
+  final VoidCallback? onAulaTap;
+  final VoidCallback? onNrcTap;
+  final VoidCallback? onEdificioTap;
   final TimeFormat timeFormat;
 
   const ClaseCard({
@@ -34,6 +39,11 @@ class ClaseCard extends StatelessWidget {
     required this.onDelete,
     required this.onEdit,
     this.onAddToSchedule,
+    this.onTeacherTap,
+    this.onMateriaTap,
+    this.onAulaTap,
+    this.onNrcTap,
+    this.onEdificioTap,
     this.timeFormat = TimeFormat.twentyFourHour,
   });
 
@@ -167,50 +177,121 @@ class ClaseCard extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    materia,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      color: cardTextColor,
-                      fontSize: 15,
-                      fontWeight: FontWeight.w800,
+                  InkWell(
+                    onTap: onMateriaTap,
+                    borderRadius: BorderRadius.circular(4),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          materia,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            color: onMateriaTap != null
+                                ? accentColor
+                                : cardTextColor,
+                            fontSize: 15,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                        if (onMateriaTap != null) ...[
+                          const SizedBox(width: 4),
+                          Icon(
+                            LucideIcons.chevronRight,
+                            size: 14,
+                            color: accentColor,
+                          ),
+                        ],
+                      ],
                     ),
                   ),
                   const SizedBox(height: 3),
-                  Text(
-                    profesor,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      color: cardTextColor.withValues(alpha: 0.72),
-                      fontSize: 12,
+                  InkWell(
+                    onTap: onTeacherTap,
+                    borderRadius: BorderRadius.circular(4),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          profesor,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            color: onTeacherTap != null
+                                ? accentColor
+                                : cardTextColor.withValues(alpha: 0.72),
+                            fontSize: 12,
+                            fontWeight: onTeacherTap != null
+                                ? FontWeight.w600
+                                : FontWeight.normal,
+                          ),
+                        ),
+                        if (onTeacherTap != null) ...[
+                          const SizedBox(width: 4),
+                          Icon(
+                            LucideIcons.chevronRight,
+                            size: 12,
+                            color: accentColor,
+                          ),
+                        ],
+                      ],
                     ),
                   ),
                   const SizedBox(height: 6),
                   Row(
                     children: [
-                      InfoChip(
-                        icon: LucideIcons.mapPin,
-                        label: aula,
-                        color: cardTextColor,
+                      InkWell(
+                        onTap: onAulaTap,
+                        borderRadius: BorderRadius.circular(12),
+                        child: InfoChip(
+                          icon: LucideIcons.mapPin,
+                          label: aula,
+                          color: onAulaTap != null ? accentColor : cardTextColor,
+                        ),
                       ),
                       const SizedBox(width: 4),
-                      InfoChip(
-                        icon: LucideIcons.badge,
-                        label: 'NRC $nrc',
-                        color: cardTextColor,
+                      InkWell(
+                        onTap: onNrcTap,
+                        borderRadius: BorderRadius.circular(12),
+                        child: InfoChip(
+                          icon: LucideIcons.badge,
+                          label: 'NRC $nrc',
+                          color: onNrcTap != null ? accentColor : cardTextColor,
+                        ),
                       ),
                     ],
                   ),
                   const SizedBox(height: 4),
-                  Text(
-                    edificio,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      color: cardTextColor.withValues(alpha: 0.5),
-                      fontSize: 11,
+                  InkWell(
+                    onTap: onEdificioTap,
+                    borderRadius: BorderRadius.circular(4),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          edificio,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            color: onEdificioTap != null
+                                ? accentColor
+                                : cardTextColor.withValues(alpha: 0.5),
+                            fontSize: 11,
+                            fontWeight: onEdificioTap != null
+                                ? FontWeight.w600
+                                : FontWeight.normal,
+                          ),
+                        ),
+                        if (onEdificioTap != null) ...[
+                          const SizedBox(width: 4),
+                          Icon(
+                            LucideIcons.chevronRight,
+                            size: 10,
+                            color: accentColor,
+                          ),
+                        ],
+                      ],
                     ),
                   ),
                 ],

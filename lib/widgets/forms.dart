@@ -1884,6 +1884,248 @@ class _EditMateriaSheetState extends State<EditMateriaSheet> {
   }
 }
 
+class AddMaestroSheet extends StatefulWidget {
+  final Color primaryColor;
+  final void Function(Maestro) onSave;
+
+  const AddMaestroSheet({
+    super.key,
+    required this.primaryColor,
+    required this.onSave,
+  });
+
+  @override
+  State<AddMaestroSheet> createState() => _AddMaestroSheetState();
+}
+
+class _AddMaestroSheetState extends State<AddMaestroSheet> {
+  final _formKey = GlobalKey<FormState>();
+  final _nombreController = TextEditingController();
+  final _correoController = TextEditingController();
+  final _telefonoController = TextEditingController();
+  final _imagenUrlController = TextEditingController();
+
+  @override
+  void dispose() {
+    _nombreController.dispose();
+    _correoController.dispose();
+    _telefonoController.dispose();
+    _imagenUrlController.dispose();
+    super.dispose();
+  }
+
+  void _save() {
+    if (!(_formKey.currentState?.validate() ?? false)) return;
+
+    widget.onSave(
+      Maestro(
+        nombre: _nombreController.text.trim(),
+        correo: _correoController.text.trim(),
+        telefono: _telefonoController.text.trim(),
+        imagenUrl: _imagenUrlController.text.trim().isEmpty
+            ? null
+            : _imagenUrlController.text.trim(),
+      ),
+    );
+    Navigator.pop(context);
+  }
+
+  InputDecoration _fieldDecoration(String label, IconData icon) {
+    final primaryColor = Theme.of(context).colorScheme.primary;
+    final borderColor = Theme.of(context).colorScheme.onSurface
+        .withValues(alpha: 0.12);
+    final fill = Theme.of(context).brightness == Brightness.light
+        ? Colors.white.withValues(alpha: 0.05)
+        : Colors.white.withValues(alpha: 0.02);
+
+    return InputDecoration(
+      labelText: label,
+      prefixIcon: Icon(icon, size: 19, color: primaryColor),
+      filled: true,
+      fillColor: fill,
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(14),
+        borderSide: BorderSide(color: borderColor, width: 1),
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(14),
+        borderSide: BorderSide(color: borderColor, width: 1),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(14),
+        borderSide: BorderSide(color: primaryColor, width: 2),
+      ),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+      labelStyle: const TextStyle(fontSize: 13),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final bottomInset = MediaQuery.viewInsetsOf(context).bottom;
+    final topPadding = MediaQuery.paddingOf(context).top;
+    final primaryColor = widget.primaryColor;
+
+    return Padding(
+      padding: EdgeInsets.only(
+        top: topPadding > 0 ? topPadding + 10 : 20,
+        bottom: bottomInset,
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 0, 20, 10),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'Nuevo maestro',
+                  style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                    fontWeight: FontWeight.w800,
+                    color: primaryColor,
+                  ),
+                ),
+                IconButton(
+                  onPressed: () => Navigator.pop(context),
+                  icon: const Icon(LucideIcons.x),
+                ),
+              ],
+            ),
+          ),
+          Flexible(
+            child: Form(
+              key: _formKey,
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.fromLTRB(20, 0, 20, 10),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Completa los datos del maestro.',
+                      style: TextStyle(
+                        color: Theme.of(context).colorScheme.onSurface
+                            .withValues(alpha: 0.6),
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+                    Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: Theme.of(context).colorScheme.surface
+                            .withValues(alpha: 0.2),
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(
+                          color: Theme.of(context).colorScheme.onSurface
+                              .withValues(alpha: 0.12),
+                        ),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Icon(
+                                LucideIcons.user,
+                                size: 18,
+                                color: primaryColor,
+                              ),
+                              const SizedBox(width: 8),
+                              Text(
+                                'Información personal',
+                                style: Theme.of(context).textTheme.titleSmall
+                                    ?.copyWith(
+                                      fontWeight: FontWeight.w600,
+                                      color: primaryColor,
+                                    ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 16),
+                          TextFormField(
+                            controller: _nombreController,
+                            textInputAction: TextInputAction.next,
+                            decoration: _fieldDecoration(
+                              'Nombre completo',
+                              LucideIcons.user,
+                            ),
+                            validator: (value) =>
+                                value == null || value.trim().isEmpty
+                                ? 'Escribe el nombre del maestro'
+                                : null,
+                          ),
+                          const SizedBox(height: 16),
+                          TextFormField(
+                            controller: _correoController,
+                            textInputAction: TextInputAction.next,
+                            keyboardType: TextInputType.emailAddress,
+                            decoration: _fieldDecoration(
+                              'Correo electrónico',
+                              LucideIcons.mail,
+                            ),
+                            validator: (value) =>
+                                value == null || value.trim().isEmpty
+                                ? 'Escribe el correo electrónico'
+                                : null,
+                          ),
+                          const SizedBox(height: 16),
+                          TextFormField(
+                            controller: _telefonoController,
+                            textInputAction: TextInputAction.next,
+                            keyboardType: TextInputType.phone,
+                            decoration: _fieldDecoration(
+                              'Teléfono',
+                              LucideIcons.phone,
+                            ),
+                            validator: (value) =>
+                                value == null || value.trim().isEmpty
+                                ? 'Escribe el teléfono'
+                                : null,
+                          ),
+                          const SizedBox(height: 16),
+                          TextFormField(
+                            controller: _imagenUrlController,
+                            textInputAction: TextInputAction.done,
+                            decoration: _fieldDecoration(
+                              'URL de imagen (opcional)',
+                              LucideIcons.image,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+          Container(
+            padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
+            width: double.infinity,
+            child: FilledButton.icon(
+              onPressed: _save,
+              icon: const Icon(LucideIcons.userPlus, size: 20),
+              label: const Text(
+                'Agregar maestro',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+              ),
+              style: FilledButton.styleFrom(
+                padding: const EdgeInsets.symmetric(vertical: 22),
+                backgroundColor: primaryColor,
+                foregroundColor: defaultTextColor(primaryColor),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                elevation: 0,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class TimeSelector extends StatefulWidget {
   final String label;
   final IconData icon;
@@ -2155,6 +2397,522 @@ class _TimePickerModalState extends State<_TimePickerModal> {
             ),
           ),
           const SizedBox(height: 20),
+        ],
+      ),
+    );
+  }
+}
+
+class AddSalonSheet extends StatefulWidget {
+  final Color primaryColor;
+  final void Function(Salon) onSave;
+
+  const AddSalonSheet({
+    super.key,
+    required this.primaryColor,
+    required this.onSave,
+  });
+
+  @override
+  State<AddSalonSheet> createState() => _AddSalonSheetState();
+}
+
+class _AddSalonSheetState extends State<AddSalonSheet> {
+  final _formKey = GlobalKey<FormState>();
+  final _nombreController = TextEditingController();
+  final _edificioController = TextEditingController();
+  final _ubicacionController = TextEditingController();
+  final _referenciasController = TextEditingController();
+  final _capacidadController = TextEditingController(text: '40');
+  final _imagenUrlController = TextEditingController();
+
+  @override
+  void dispose() {
+    _nombreController.dispose();
+    _edificioController.dispose();
+    _ubicacionController.dispose();
+    _referenciasController.dispose();
+    _capacidadController.dispose();
+    _imagenUrlController.dispose();
+    super.dispose();
+  }
+
+  void _save() {
+    if (!(_formKey.currentState?.validate() ?? false)) return;
+
+    widget.onSave(
+      Salon(
+        nombre: _nombreController.text.trim(),
+        edificio: _edificioController.text.trim(),
+        ubicacion: _ubicacionController.text.trim(),
+        referencias: _referenciasController.text.trim().isEmpty
+            ? null
+            : _referenciasController.text.trim(),
+        capacidad: int.tryParse(_capacidadController.text.trim()) ?? 40,
+        imagenUrl: _imagenUrlController.text.trim().isEmpty
+            ? null
+            : _imagenUrlController.text.trim(),
+      ),
+    );
+    Navigator.pop(context);
+  }
+
+  InputDecoration _fieldDecoration(String label, IconData icon) {
+    final primaryColor = Theme.of(context).colorScheme.primary;
+    final borderColor = Theme.of(context).colorScheme.onSurface
+        .withValues(alpha: 0.12);
+    final fill = Theme.of(context).brightness == Brightness.light
+        ? Colors.white.withValues(alpha: 0.05)
+        : Colors.white.withValues(alpha: 0.02);
+
+    return InputDecoration(
+      labelText: label,
+      prefixIcon: Icon(icon, size: 19, color: primaryColor),
+      filled: true,
+      fillColor: fill,
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(14),
+        borderSide: BorderSide(color: borderColor, width: 1),
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(14),
+        borderSide: BorderSide(color: borderColor, width: 1),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(14),
+        borderSide: BorderSide(color: primaryColor, width: 2),
+      ),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+      labelStyle: const TextStyle(fontSize: 13),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final bottomInset = MediaQuery.viewInsetsOf(context).bottom;
+    final topPadding = MediaQuery.paddingOf(context).top;
+    final primaryColor = widget.primaryColor;
+
+    return Padding(
+      padding: EdgeInsets.only(
+        top: topPadding > 0 ? topPadding + 10 : 20,
+        bottom: bottomInset,
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 0, 20, 10),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'Nuevo salón',
+                  style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                    fontWeight: FontWeight.w800,
+                    color: primaryColor,
+                  ),
+                ),
+                IconButton(
+                  onPressed: () => Navigator.pop(context),
+                  icon: const Icon(LucideIcons.x),
+                ),
+              ],
+            ),
+          ),
+          Flexible(
+            child: Form(
+              key: _formKey,
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.fromLTRB(20, 0, 20, 10),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Completa los datos del salón.',
+                      style: TextStyle(
+                        color: Theme.of(context).colorScheme.onSurface
+                            .withValues(alpha: 0.6),
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+                    Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: Theme.of(context).colorScheme.surface
+                            .withValues(alpha: 0.2),
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(
+                          color: Theme.of(context).colorScheme.onSurface
+                              .withValues(alpha: 0.12),
+                        ),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Icon(
+                                LucideIcons.doorOpen,
+                                size: 18,
+                                color: primaryColor,
+                              ),
+                              const SizedBox(width: 8),
+                              Text(
+                                'Información del salón',
+                                style: Theme.of(context).textTheme.titleSmall
+                                    ?.copyWith(
+                                      fontWeight: FontWeight.w600,
+                                      color: primaryColor,
+                                    ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 16),
+                          TextFormField(
+                            controller: _nombreController,
+                            textInputAction: TextInputAction.next,
+                            decoration: _fieldDecoration(
+                              'Nombre del salón',
+                              LucideIcons.doorOpen,
+                            ),
+                            validator: (value) =>
+                                value == null || value.trim().isEmpty
+                                ? 'Escribe el nombre del salón'
+                                : null,
+                          ),
+                          const SizedBox(height: 16),
+                          TextFormField(
+                            controller: _edificioController,
+                            textInputAction: TextInputAction.next,
+                            decoration: _fieldDecoration(
+                              'Edificio',
+                              LucideIcons.building2,
+                            ),
+                            validator: (value) =>
+                                value == null || value.trim().isEmpty
+                                ? 'Escribe el edificio'
+                                : null,
+                          ),
+                          const SizedBox(height: 16),
+                          TextFormField(
+                            controller: _ubicacionController,
+                            textInputAction: TextInputAction.next,
+                            decoration: _fieldDecoration(
+                              'Ubicación',
+                              LucideIcons.mapPin,
+                            ),
+                            validator: (value) =>
+                                value == null || value.trim().isEmpty
+                                ? 'Escribe la ubicación'
+                                : null,
+                          ),
+                          const SizedBox(height: 16),
+                          TextFormField(
+                            controller: _capacidadController,
+                            textInputAction: TextInputAction.next,
+                            keyboardType: TextInputType.number,
+                            decoration: _fieldDecoration(
+                              'Capacidad',
+                              LucideIcons.users,
+                            ),
+                            validator: (value) =>
+                                value == null || value.trim().isEmpty
+                                ? 'Escribe la capacidad'
+                                : null,
+                          ),
+                          const SizedBox(height: 16),
+                          TextFormField(
+                            controller: _referenciasController,
+                            textInputAction: TextInputAction.next,
+                            decoration: _fieldDecoration(
+                              'Referencias (opcional)',
+                              LucideIcons.info,
+                            ),
+                          ),
+                          const SizedBox(height: 16),
+                          TextFormField(
+                            controller: _imagenUrlController,
+                            textInputAction: TextInputAction.done,
+                            decoration: _fieldDecoration(
+                              'URL de imagen (opcional)',
+                              LucideIcons.image,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+          Container(
+            padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
+            width: double.infinity,
+            child: FilledButton.icon(
+              onPressed: _save,
+              icon: const Icon(LucideIcons.doorOpen, size: 20),
+              label: const Text(
+                'Agregar salón',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+              ),
+              style: FilledButton.styleFrom(
+                padding: const EdgeInsets.symmetric(vertical: 22),
+                backgroundColor: primaryColor,
+                foregroundColor: defaultTextColor(primaryColor),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                elevation: 0,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class AddEdificioSheet extends StatefulWidget {
+  final Color primaryColor;
+  final void Function(Edificio) onSave;
+
+  const AddEdificioSheet({
+    super.key,
+    required this.primaryColor,
+    required this.onSave,
+  });
+
+  @override
+  State<AddEdificioSheet> createState() => _AddEdificioSheetState();
+}
+
+class _AddEdificioSheetState extends State<AddEdificioSheet> {
+  final _formKey = GlobalKey<FormState>();
+  final _nombreController = TextEditingController();
+  final _descripcionController = TextEditingController();
+  final _salonesController = TextEditingController();
+  final _imagenUrlController = TextEditingController();
+
+  @override
+  void dispose() {
+    _nombreController.dispose();
+    _descripcionController.dispose();
+    _salonesController.dispose();
+    _imagenUrlController.dispose();
+    super.dispose();
+  }
+
+  void _save() {
+    if (!(_formKey.currentState?.validate() ?? false)) return;
+
+    final salonesList = _salonesController.text
+        .split(',')
+        .map((s) => s.trim())
+        .where((s) => s.isNotEmpty)
+        .toList();
+
+    widget.onSave(
+      Edificio(
+        nombre: _nombreController.text.trim(),
+        descripcion: _descripcionController.text.trim().isEmpty
+            ? null
+            : _descripcionController.text.trim(),
+        salones: salonesList,
+        imagenUrl: _imagenUrlController.text.trim().isEmpty
+            ? null
+            : _imagenUrlController.text.trim(),
+      ),
+    );
+    Navigator.pop(context);
+  }
+
+  InputDecoration _fieldDecoration(String label, IconData icon) {
+    final primaryColor = Theme.of(context).colorScheme.primary;
+    final borderColor = Theme.of(context).colorScheme.onSurface
+        .withValues(alpha: 0.12);
+    final fill = Theme.of(context).brightness == Brightness.light
+        ? Colors.white.withValues(alpha: 0.05)
+        : Colors.white.withValues(alpha: 0.02);
+
+    return InputDecoration(
+      labelText: label,
+      prefixIcon: Icon(icon, size: 19, color: primaryColor),
+      filled: true,
+      fillColor: fill,
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(14),
+        borderSide: BorderSide(color: borderColor, width: 1),
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(14),
+        borderSide: BorderSide(color: borderColor, width: 1),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(14),
+        borderSide: BorderSide(color: primaryColor, width: 2),
+      ),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+      labelStyle: const TextStyle(fontSize: 13),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final bottomInset = MediaQuery.viewInsetsOf(context).bottom;
+    final topPadding = MediaQuery.paddingOf(context).top;
+    final primaryColor = widget.primaryColor;
+
+    return Padding(
+      padding: EdgeInsets.only(
+        top: topPadding > 0 ? topPadding + 10 : 20,
+        bottom: bottomInset,
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 0, 20, 10),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'Nuevo edificio',
+                  style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                    fontWeight: FontWeight.w800,
+                    color: primaryColor,
+                  ),
+                ),
+                IconButton(
+                  onPressed: () => Navigator.pop(context),
+                  icon: const Icon(LucideIcons.x),
+                ),
+              ],
+            ),
+          ),
+          Flexible(
+            child: Form(
+              key: _formKey,
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.fromLTRB(20, 0, 20, 10),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Completa los datos del edificio.',
+                      style: TextStyle(
+                        color: Theme.of(context).colorScheme.onSurface
+                            .withValues(alpha: 0.6),
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+                    Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: Theme.of(context).colorScheme.surface
+                            .withValues(alpha: 0.2),
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(
+                          color: Theme.of(context).colorScheme.onSurface
+                              .withValues(alpha: 0.12),
+                        ),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Icon(
+                                LucideIcons.building2,
+                                size: 18,
+                                color: primaryColor,
+                              ),
+                              const SizedBox(width: 8),
+                              Text(
+                                'Información del edificio',
+                                style: Theme.of(context).textTheme.titleSmall
+                                    ?.copyWith(
+                                      fontWeight: FontWeight.w600,
+                                      color: primaryColor,
+                                    ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 16),
+                          TextFormField(
+                            controller: _nombreController,
+                            textInputAction: TextInputAction.next,
+                            decoration: _fieldDecoration(
+                              'Nombre del edificio',
+                              LucideIcons.building2,
+                            ),
+                            validator: (value) =>
+                                value == null || value.trim().isEmpty
+                                ? 'Escribe el nombre del edificio'
+                                : null,
+                          ),
+                          const SizedBox(height: 16),
+                          TextFormField(
+                            controller: _descripcionController,
+                            textInputAction: TextInputAction.next,
+                            maxLines: 3,
+                            decoration: _fieldDecoration(
+                              'Descripción (opcional)',
+                              LucideIcons.fileText,
+                            ),
+                          ),
+                          const SizedBox(height: 16),
+                          TextFormField(
+                            controller: _salonesController,
+                            textInputAction: TextInputAction.next,
+                            decoration: _fieldDecoration(
+                              'Salones (separados por coma)',
+                              LucideIcons.doorOpen,
+                            ),
+                            validator: (value) =>
+                                value == null || value.trim().isEmpty
+                                ? 'Escribe los salones'
+                                : null,
+                          ),
+                          const SizedBox(height: 16),
+                          TextFormField(
+                            controller: _imagenUrlController,
+                            textInputAction: TextInputAction.done,
+                            decoration: _fieldDecoration(
+                              'URL de imagen (opcional)',
+                              LucideIcons.image,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+          Container(
+            padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
+            width: double.infinity,
+            child: FilledButton.icon(
+              onPressed: _save,
+              icon: const Icon(LucideIcons.building2, size: 20),
+              label: const Text(
+                'Agregar edificio',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+              ),
+              style: FilledButton.styleFrom(
+                padding: const EdgeInsets.symmetric(vertical: 22),
+                backgroundColor: primaryColor,
+                foregroundColor: defaultTextColor(primaryColor),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                elevation: 0,
+              ),
+            ),
+          ),
         ],
       ),
     );

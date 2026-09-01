@@ -129,3 +129,107 @@ int compareClassesByStartTime(Clase first, Clase second) {
 
   return minutes(first.horaInicio).compareTo(minutes(second.horaInicio));
 }
+
+class Maestro {
+  final String nombre;
+  final String correo;
+  final String telefono;
+  final String? imagenUrl;
+
+  const Maestro({
+    required this.nombre,
+    required this.correo,
+    required this.telefono,
+    this.imagenUrl,
+  });
+
+  Map<String, dynamic> toJson() {
+    return {
+      'nombre': nombre,
+      'correo': correo,
+      'telefono': telefono,
+      if (imagenUrl != null) 'imagenUrl': imagenUrl,
+    };
+  }
+
+  factory Maestro.fromJson(Map<String, dynamic> json) {
+    return Maestro(
+      nombre: json['nombre'],
+      correo: json['correo'],
+      telefono: json['telefono'],
+      imagenUrl: json['imagenUrl'],
+    );
+  }
+}
+
+class Salon {
+  final String nombre;
+  final String edificio;
+  final String ubicacion;
+  final String? imagenUrl;
+  final String? referencias;
+  final int capacidad;
+
+  const Salon({
+    required this.nombre,
+    required this.edificio,
+    required this.ubicacion,
+    this.imagenUrl,
+    this.referencias,
+    this.capacidad = 40,
+  });
+
+  Map<String, dynamic> toJson() {
+    return {
+      'nombre': nombre,
+      'edificio': edificio,
+      'ubicacion': ubicacion,
+      if (imagenUrl != null) 'imagenUrl': imagenUrl,
+      if (referencias != null) 'referencias': referencias,
+      'capacidad': capacidad,
+    };
+  }
+
+  factory Salon.fromJson(Map<String, dynamic> json) {
+    return Salon(
+      nombre: json['nombre'],
+      edificio: json['edificio'],
+      ubicacion: json['ubicacion'],
+      imagenUrl: json['imagenUrl'],
+      referencias: json['referencias'],
+      capacidad: json['capacidad'] ?? 40,
+    );
+  }
+}
+
+class Edificio {
+  final String nombre;
+  final String? imagenUrl;
+  final String? descripcion;
+  final List<String> salones;
+
+  const Edificio({
+    required this.nombre,
+    this.imagenUrl,
+    this.descripcion,
+    this.salones = const [],
+  });
+
+  Map<String, dynamic> toJson() {
+    return {
+      'nombre': nombre,
+      if (imagenUrl != null) 'imagenUrl': imagenUrl,
+      if (descripcion != null) 'descripcion': descripcion,
+      'salones': salones,
+    };
+  }
+
+  factory Edificio.fromJson(Map<String, dynamic> json) {
+    return Edificio(
+      nombre: json['nombre'],
+      imagenUrl: json['imagenUrl'],
+      descripcion: json['descripcion'],
+      salones: List<String>.from(json['salones'] ?? []),
+    );
+  }
+}
