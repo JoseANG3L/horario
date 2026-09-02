@@ -61,7 +61,7 @@ class DaySchedule extends StatefulWidget {
   final Function(String) onTeacherTap;
   final Function(String) onAulaTap;
   final Function(String) onEdificioTap;
-  final Function(String) onMateriaTap;
+  final Function(Clase) onMateriaTap;
   final Function(String) onNrcTap;
   final TimeFormat timeFormat;
 
@@ -148,7 +148,7 @@ class _DayScheduleState extends State<DaySchedule> {
             onTeacherTap: () => widget.onTeacherTap(item.profesor),
             onAulaTap: () => widget.onAulaTap(item.aula),
             onEdificioTap: () => widget.onEdificioTap(item.edificio),
-            onMateriaTap: () => widget.onMateriaTap(item.materia),
+            onMateriaTap: () => widget.onMateriaTap(item),
             onNrcTap: () => widget.onNrcTap(item.nrc),
             timeFormat: widget.timeFormat,
           ),
@@ -187,7 +187,7 @@ class ScheduleTab extends StatefulWidget {
   final Function(String) onTeacherTap;
   final Function(String) onAulaTap;
   final Function(String) onEdificioTap;
-  final Function(String) onMateriaTap;
+  final Function(Clase) onMateriaTap;
   final Function(String) onNrcTap;
   final TimeFormat timeFormat;
 
@@ -604,15 +604,7 @@ class _AppearanceSectionState extends State<AppearanceSection> {
   late DayLabelFormat _dayLabelFormat;
   late TimeFormat _timeFormat;
 
-  List<String> get _previewDays {
-    return const ['Lunes'];
-  }
 
-  String _previewLabel(String day) {
-    if (_dayLabelFormat == DayLabelFormat.initial) return day.substring(0, 1);
-    if (_dayLabelFormat == DayLabelFormat.short) return day.substring(0, 3);
-    return day;
-  }
 
   @override
   void initState() {
@@ -1128,12 +1120,12 @@ class _MaestrosTabState extends State<MaestrosTab> {
     return ListView.separated(
       padding: const EdgeInsets.all(20),
       itemCount: widget.maestros.length,
-      separatorBuilder: (_, __) => const SizedBox(height: 12),
+      separatorBuilder: (_, _) => const SizedBox(height: 12),
       itemBuilder: (context, index) {
         final maestro = widget.maestros[index];
         return MaestroCard(
           maestro: maestro,
-          onTap: () => _showMaestroDetail(maestro),
+          onEdit: () => _showMaestroDetail(maestro),
           onDelete: () => widget.onDeleteMaestro(index),
           primaryColor: widget.primaryColor,
         );
@@ -1155,14 +1147,14 @@ class _MaestrosTabState extends State<MaestrosTab> {
 
 class MaestroCard extends StatelessWidget {
   final Maestro maestro;
-  final VoidCallback onTap;
+  final VoidCallback onEdit;
   final VoidCallback onDelete;
   final Color primaryColor;
 
   const MaestroCard({
     super.key,
     required this.maestro,
-    required this.onTap,
+    required this.onEdit,
     required this.onDelete,
     required this.primaryColor,
   });
@@ -1170,7 +1162,42 @@ class MaestroCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return InkWell(
-      onTap: onTap,
+      onTap: () {
+        showModalBottomSheet(
+          context: context,
+          useSafeArea: true,
+          backgroundColor: Theme.of(context).colorScheme.surface,
+          builder: (context) => SafeArea(
+            child: Material(
+              color: Theme.of(context).colorScheme.surface,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  ListTile(
+                    leading: const Icon(
+                      LucideIcons.pencil,
+                      color: Color(0xFF53D1B6),
+                    ),
+                    title: const Text('Editar'),
+                    onTap: () {
+                      Navigator.pop(context);
+                      onEdit();
+                    },
+                  ),
+                  ListTile(
+                    leading: const Icon(LucideIcons.trash2, color: Colors.red),
+                    title: const Text('Eliminar'),
+                    onTap: () {
+                      Navigator.pop(context);
+                      onDelete();
+                    },
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
       borderRadius: BorderRadius.circular(16),
       child: Container(
         padding: const EdgeInsets.all(16),
@@ -1236,10 +1263,6 @@ class MaestroCard extends StatelessWidget {
                   ),
                 ],
               ),
-            ),
-            IconButton(
-              icon: const Icon(LucideIcons.trash2, color: Colors.red),
-              onPressed: onDelete,
             ),
           ],
         ),
@@ -1446,7 +1469,7 @@ class _SalonesTabState extends State<SalonesTab> {
           child: SalonCard(
             salon: salon,
             primaryColor: widget.primaryColor,
-            onTap: () => _showSalonDetail(salon),
+            onEdit: () => _showSalonDetail(salon),
             onDelete: () => widget.onDeleteSalon(index),
           ),
         );
@@ -1471,14 +1494,14 @@ class _SalonesTabState extends State<SalonesTab> {
 class SalonCard extends StatelessWidget {
   final Salon salon;
   final Color primaryColor;
-  final VoidCallback onTap;
+  final VoidCallback onEdit;
   final VoidCallback onDelete;
 
   const SalonCard({
     super.key,
     required this.salon,
     required this.primaryColor,
-    required this.onTap,
+    required this.onEdit,
     required this.onDelete,
   });
 
@@ -1496,7 +1519,42 @@ class SalonCard extends StatelessWidget {
       color: cardColor,
       borderRadius: BorderRadius.circular(16),
       child: InkWell(
-        onTap: onTap,
+        onTap: () {
+          showModalBottomSheet(
+            context: context,
+            useSafeArea: true,
+            backgroundColor: Theme.of(context).colorScheme.surface,
+            builder: (context) => SafeArea(
+              child: Material(
+                color: Theme.of(context).colorScheme.surface,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    ListTile(
+                      leading: const Icon(
+                        LucideIcons.pencil,
+                        color: Color(0xFF53D1B6),
+                      ),
+                      title: const Text('Editar'),
+                      onTap: () {
+                        Navigator.pop(context);
+                        onEdit();
+                      },
+                    ),
+                    ListTile(
+                      leading: const Icon(LucideIcons.trash2, color: Colors.red),
+                      title: const Text('Eliminar'),
+                      onTap: () {
+                        Navigator.pop(context);
+                        onDelete();
+                      },
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          );
+        },
         borderRadius: BorderRadius.circular(16),
         child: Container(
           padding: const EdgeInsets.all(16),
@@ -1537,14 +1595,6 @@ class SalonCard extends StatelessWidget {
                       ),
                     ),
                   ],
-                ),
-              ),
-              IconButton(
-                onPressed: onDelete,
-                icon: Icon(
-                  LucideIcons.trash2,
-                  color: textColor.withValues(alpha: 0.5),
-                  size: 20,
                 ),
               ),
             ],
@@ -1727,7 +1777,7 @@ class _EdificiosTabState extends State<EdificiosTab> {
           child: EdificioCard(
             edificio: edificio,
             primaryColor: widget.primaryColor,
-            onTap: () => _showEdificioDetail(edificio),
+            onEdit: () => _showEdificioDetail(edificio),
             onDelete: () => widget.onDeleteEdificio(index),
           ),
         );
@@ -1752,14 +1802,14 @@ class _EdificiosTabState extends State<EdificiosTab> {
 class EdificioCard extends StatelessWidget {
   final Edificio edificio;
   final Color primaryColor;
-  final VoidCallback onTap;
+  final VoidCallback onEdit;
   final VoidCallback onDelete;
 
   const EdificioCard({
     super.key,
     required this.edificio,
     required this.primaryColor,
-    required this.onTap,
+    required this.onEdit,
     required this.onDelete,
   });
 
@@ -1777,7 +1827,42 @@ class EdificioCard extends StatelessWidget {
       color: cardColor,
       borderRadius: BorderRadius.circular(16),
       child: InkWell(
-        onTap: onTap,
+        onTap: () {
+          showModalBottomSheet(
+            context: context,
+            useSafeArea: true,
+            backgroundColor: Theme.of(context).colorScheme.surface,
+            builder: (context) => SafeArea(
+              child: Material(
+                color: Theme.of(context).colorScheme.surface,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    ListTile(
+                      leading: const Icon(
+                        LucideIcons.pencil,
+                        color: Color(0xFF53D1B6),
+                      ),
+                      title: const Text('Editar'),
+                      onTap: () {
+                        Navigator.pop(context);
+                        onEdit();
+                      },
+                    ),
+                    ListTile(
+                      leading: const Icon(LucideIcons.trash2, color: Colors.red),
+                      title: const Text('Eliminar'),
+                      onTap: () {
+                        Navigator.pop(context);
+                        onDelete();
+                      },
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          );
+        },
         borderRadius: BorderRadius.circular(16),
         child: Container(
           padding: const EdgeInsets.all(16),
@@ -1820,14 +1905,6 @@ class EdificioCard extends StatelessWidget {
                   ],
                 ),
               ),
-              IconButton(
-                onPressed: onDelete,
-                icon: Icon(
-                  LucideIcons.trash2,
-                  color: textColor.withValues(alpha: 0.5),
-                  size: 20,
-                ),
-              ),
             ],
           ),
         ),
@@ -1848,29 +1925,25 @@ class EdificioDetailSheet extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: EdgeInsets.only(
-        top: 20,
-        bottom: MediaQuery.viewInsetsOf(context).bottom,
-      ),
-      decoration: BoxDecoration(
-        color: Theme.of(context).scaffoldBackgroundColor,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.only(left: 20, bottom: 20),
+          child: Container(
             width: 40,
             height: 4,
-            margin: const EdgeInsets.only(bottom: 20),
             decoration: BoxDecoration(
               color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.2),
               borderRadius: BorderRadius.circular(2),
             ),
           ),
-          if (edificio.imagenUrl != null) ...[
-            ClipRRect(
+        ),
+        if (edificio.imagenUrl != null) ...[
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            child: ClipRRect(
               borderRadius: BorderRadius.circular(16),
               child: Image.network(
                 edificio.imagenUrl!,
@@ -1888,39 +1961,51 @@ class EdificioDetailSheet extends StatelessWidget {
                 ),
               ),
             ),
-            const SizedBox(height: 20),
-          ],
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
+          ),
+          const SizedBox(height: 20),
+        ],
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                child: Text(
                   edificio.nombre,
                   style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                     fontWeight: FontWeight.w800,
                     color: primaryColor,
                   ),
                 ),
-                if (edificio.descripcion != null) ...[
-                  const SizedBox(height: 8),
-                  Text(
+              ),
+              if (edificio.descripcion != null) ...[
+                const SizedBox(height: 8),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  child: Text(
                     edificio.descripcion!,
                     style: TextStyle(
                       color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
                     ),
                   ),
-                ],
-                const SizedBox(height: 24),
-                Text(
+                ),
+              ],
+              const SizedBox(height: 24),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                child: Text(
                   'Salones (${edificio.salones.length})',
                   style: Theme.of(context).textTheme.titleMedium?.copyWith(
                     fontWeight: FontWeight.w700,
                     color: primaryColor,
                   ),
                 ),
-                const SizedBox(height: 12),
-                Wrap(
+              ),
+              const SizedBox(height: 12),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                child: Wrap(
                   spacing: 8,
                   runSpacing: 8,
                   children: edificio.salones.map((salon) {
@@ -1944,12 +2029,12 @@ class EdificioDetailSheet extends StatelessWidget {
                     );
                   }).toList(),
                 ),
-                const SizedBox(height: 20),
-              ],
-            ),
+              ),
+              const SizedBox(height: 20),
+            ],
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 }

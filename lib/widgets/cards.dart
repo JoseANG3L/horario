@@ -188,9 +188,7 @@ class ClaseCard extends StatelessWidget {
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: TextStyle(
-                            color: onMateriaTap != null
-                                ? accentColor
-                                : cardTextColor,
+                            color: cardTextColor,
                             fontSize: 15,
                             fontWeight: FontWeight.w800,
                           ),
@@ -206,40 +204,10 @@ class ClaseCard extends StatelessWidget {
                       ],
                     ),
                   ),
-                  const SizedBox(height: 3),
-                  InkWell(
-                    onTap: onTeacherTap,
-                    borderRadius: BorderRadius.circular(4),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(
-                          profesor,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            color: onTeacherTap != null
-                                ? accentColor
-                                : cardTextColor.withValues(alpha: 0.72),
-                            fontSize: 12,
-                            fontWeight: onTeacherTap != null
-                                ? FontWeight.w600
-                                : FontWeight.normal,
-                          ),
-                        ),
-                        if (onTeacherTap != null) ...[
-                          const SizedBox(width: 4),
-                          Icon(
-                            LucideIcons.chevronRight,
-                            size: 12,
-                            color: accentColor,
-                          ),
-                        ],
-                      ],
-                    ),
-                  ),
                   const SizedBox(height: 6),
-                  Row(
+                  Wrap(
+                    spacing: 4,
+                    runSpacing: 4,
                     children: [
                       InkWell(
                         onTap: onAulaTap,
@@ -247,52 +215,28 @@ class ClaseCard extends StatelessWidget {
                         child: InfoChip(
                           icon: LucideIcons.mapPin,
                           label: aula,
-                          color: onAulaTap != null ? accentColor : cardTextColor,
+                          color: cardTextColor,
                         ),
                       ),
-                      const SizedBox(width: 4),
                       InkWell(
-                        onTap: onNrcTap,
+                        onTap: onTeacherTap,
                         borderRadius: BorderRadius.circular(12),
                         child: InfoChip(
-                          icon: LucideIcons.badge,
-                          label: 'NRC $nrc',
-                          color: onNrcTap != null ? accentColor : cardTextColor,
+                          icon: LucideIcons.user,
+                          label: profesor,
+                          color: cardTextColor,
+                        ),
+                      ),
+                      InkWell(
+                        onTap: onEdificioTap,
+                        borderRadius: BorderRadius.circular(12),
+                        child: InfoChip(
+                          icon: LucideIcons.building2,
+                          label: edificio,
+                          color: cardTextColor,
                         ),
                       ),
                     ],
-                  ),
-                  const SizedBox(height: 4),
-                  InkWell(
-                    onTap: onEdificioTap,
-                    borderRadius: BorderRadius.circular(4),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(
-                          edificio,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            color: onEdificioTap != null
-                                ? accentColor
-                                : cardTextColor.withValues(alpha: 0.5),
-                            fontSize: 11,
-                            fontWeight: onEdificioTap != null
-                                ? FontWeight.w600
-                                : FontWeight.normal,
-                          ),
-                        ),
-                        if (onEdificioTap != null) ...[
-                          const SizedBox(width: 4),
-                          Icon(
-                            LucideIcons.chevronRight,
-                            size: 10,
-                            color: accentColor,
-                          ),
-                        ],
-                      ],
-                    ),
                   ),
                 ],
               ),

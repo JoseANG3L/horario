@@ -172,8 +172,17 @@ class HorarioScreenState extends State<HorarioScreen>
       await _addSampleSavedSubjects();
     }
     await _loadMaestros();
+    if (_maestros.isEmpty) {
+      await _addSampleMaestros();
+    }
     await _loadSalones();
+    if (_salones.isEmpty) {
+      await _addSampleSalones();
+    }
     await _loadEdificios();
+    if (_edificios.isEmpty) {
+      await _addSampleEdificios();
+    }
     if (mounted) setState(() {});
 
     setState(() {
@@ -292,6 +301,77 @@ class HorarioScreenState extends State<HorarioScreen>
       );
     });
     await _saveMateriasGuardadas();
+  }
+
+  Future<void> _addSampleMaestros() async {
+    const sampleMaestros = [
+      ('Dr. Juan Pérez', 'juan.perez@uv.mx', '228-123-4567'),
+      ('Mtra. María García', 'maria.garcia@uv.mx', '228-234-5678'),
+      ('Dr. Carlos López', 'carlos.lopez@uv.mx', '228-345-6789'),
+      ('Lic. Ana Rodríguez', 'ana.rodriguez@uv.mx', '228-456-7890'),
+    ];
+
+    setState(() {
+      _maestros.addAll(
+        sampleMaestros.map(
+          (maestro) => Maestro(
+            nombre: maestro.$1,
+            correo: maestro.$2,
+            telefono: maestro.$3,
+            imagenUrl: null,
+          ),
+        ),
+      );
+    });
+    await _saveMaestros();
+  }
+
+  Future<void> _addSampleSalones() async {
+    const sampleSalones = [
+      ('A-101', 'Edificio A', 'Primer piso, ala norte', 'Cerca de la escalera principal', 40),
+      ('A-102', 'Edificio A', 'Primer piso, ala sur', 'Junto al laboratorio de cómputo', 35),
+      ('B-201', 'Edificio B', 'Segundo piso', 'Con proyector y pizarrón digital', 50),
+      ('B-202', 'Edificio B', 'Segundo piso', 'Sala de conferencias', 60),
+      ('C-301', 'Edificio C', 'Tercer piso', 'Laboratorio de física', 30),
+    ];
+
+    setState(() {
+      _salones.addAll(
+        sampleSalones.map(
+          (salon) => Salon(
+            nombre: salon.$1,
+            edificio: salon.$2,
+            ubicacion: salon.$3,
+            referencias: salon.$4,
+            capacidad: salon.$5,
+            imagenUrl: null,
+          ),
+        ),
+      );
+    });
+    await _saveSalones();
+  }
+
+  Future<void> _addSampleEdificios() async {
+    const sampleEdificios = [
+      ('Edificio A', 'Edificio principal de ingeniería', ['A-101', 'A-102', 'A-103', 'A-104']),
+      ('Edificio B', 'Edificio de ciencias básicas', ['B-201', 'B-202', 'B-203']),
+      ('Edificio C', 'Edificio de laboratorios', ['C-301', 'C-302', 'C-303']),
+    ];
+
+    setState(() {
+      _edificios.addAll(
+        sampleEdificios.map(
+          (edificio) => Edificio(
+            nombre: edificio.$1,
+            descripcion: edificio.$2,
+            salones: edificio.$3,
+            imagenUrl: null,
+          ),
+        ),
+      );
+    });
+    await _saveEdificios();
   }
 
   Future<void> _saveSchedule() async {
@@ -544,10 +624,16 @@ class HorarioScreenState extends State<HorarioScreen>
           _selectedTab == 1
               ? 'Materias'
               : _selectedTab == 2
-              ? 'Perfil'
+              ? 'Maestros'
               : _selectedTab == 3
-              ? 'Personalizar'
+              ? 'Salones'
               : _selectedTab == 4
+              ? 'Edificios'
+              : _selectedTab == 5
+              ? 'Perfil'
+              : _selectedTab == 6
+              ? 'Personalizar'
+              : _selectedTab == 7
               ? 'Notificaciones'
               : 'Horario',
         ),
@@ -627,19 +713,6 @@ class HorarioScreenState extends State<HorarioScreen>
                     const SizedBox(height: 4),
                   ],
                 ),
-              ),
-              ListTile(
-                leading: Icon(LucideIcons.user, color: widget.menuTextColor),
-                title: Text(
-                  'Perfil',
-                  style: TextStyle(color: widget.menuTextColor),
-                ),
-                selected: _selectedTab == 2,
-                selectedTileColor: widget.menuTextColor.withValues(alpha: 0.05),
-                onTap: () {
-                  setState(() => _selectedTab = 2);
-                  Navigator.pop(context);
-                },
               ),
               ListTile(
                 leading: Icon(
@@ -1121,17 +1194,52 @@ class HorarioScreenState extends State<HorarioScreen>
       context: context,
       isScrollControlled: true,
       useSafeArea: true,
-      backgroundColor: widget.screenBackgroundColor,
-      builder: (context) => EdificioDetailSheet(
-        edificio: edificio,
-        primaryColor: widget.primaryColor,
+      backgroundColor: Colors.transparent,
+      builder: (context) => Container(
+        width: double.infinity,
+        decoration: BoxDecoration(
+          color: widget.screenBackgroundColor,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+        ),
+        child: EdificioDetailSheet(
+          edificio: edificio,
+          primaryColor: widget.primaryColor,
+        ),
       ),
     );
   }
 
-  void _showMateriaDetail(String materiaName) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Materia: $materiaName')),
+  void _showMateriaDetail(Clase clase) {
+    showModalBottomSheet(
+      context: context,
+      useSafeArea: true,
+      backgroundColor: Theme.of(context).colorScheme.surface,
+      builder: (context) => SafeArea(
+        child: Material(
+          color: Theme.of(context).colorScheme.surface,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ListTile(
+                title: Text(clase.materia, style: const TextStyle(fontWeight: FontWeight.bold)),
+                subtitle: Text('NRC: ${clase.nrc}'),
+              ),
+              ListTile(
+                title: Text('Profesor: ${clase.profesor}'),
+              ),
+              ListTile(
+                title: Text('Aula: ${clase.aula}'),
+              ),
+              ListTile(
+                title: Text('Edificio: ${clase.edificio}'),
+              ),
+              ListTile(
+                title: Text('Horario: ${clase.horaInicio} - ${clase.horaFin}'),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 
