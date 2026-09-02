@@ -862,6 +862,7 @@ class HorarioScreenState extends State<HorarioScreen>
                 maestros: _maestros,
                 onAddMaestro: _addMaestro,
                 onDeleteMaestro: _deleteMaestro,
+                onEditMaestro: _editMaestro,
                 primaryColor: widget.primaryColor,
               )
             : _selectedTab == 3
@@ -869,6 +870,7 @@ class HorarioScreenState extends State<HorarioScreen>
                 salones: _salones,
                 onAddSalon: _addSalon,
                 onDeleteSalon: _deleteSalon,
+                onEditSalon: _editSalon,
                 primaryColor: widget.primaryColor,
               )
             : _selectedTab == 4
@@ -876,6 +878,7 @@ class HorarioScreenState extends State<HorarioScreen>
                 edificios: _edificios,
                 onAddEdificio: _addEdificio,
                 onDeleteEdificio: _deleteEdificio,
+                onEditEdificio: _editEdificio,
                 primaryColor: widget.primaryColor,
               )
             : _selectedTab == 5
@@ -1077,6 +1080,7 @@ class HorarioScreenState extends State<HorarioScreen>
         onSave: (salon) async {
           _addSalon(salon);
         },
+        edificios: _edificios,
       ),
     );
   }
@@ -1092,6 +1096,7 @@ class HorarioScreenState extends State<HorarioScreen>
         onSave: (edificio) async {
           _addEdificio(edificio);
         },
+        salones: _salones,
       ),
     );
   }
@@ -1107,6 +1112,68 @@ class HorarioScreenState extends State<HorarioScreen>
         onSave: (maestro) async {
           _addMaestro(maestro);
         },
+      ),
+    );
+  }
+
+  Future<void> _editMaestro(int index) async {
+    final maestro = _maestros[index];
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      backgroundColor: widget.screenBackgroundColor,
+      builder: (context) => AddMaestroSheet(
+        primaryColor: widget.primaryColor,
+        onSave: (updatedMaestro) async {
+          setState(() {
+            _maestros[index] = updatedMaestro;
+          });
+          await _saveMaestros();
+        },
+        maestro: maestro,
+      ),
+    );
+  }
+
+  Future<void> _editSalon(int index) async {
+    final salon = _salones[index];
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      backgroundColor: widget.screenBackgroundColor,
+      builder: (context) => AddSalonSheet(
+        primaryColor: widget.primaryColor,
+        onSave: (updatedSalon) async {
+          setState(() {
+            _salones[index] = updatedSalon;
+          });
+          await _saveSalones();
+        },
+        salon: salon,
+        edificios: _edificios,
+      ),
+    );
+  }
+
+  Future<void> _editEdificio(int index) async {
+    final edificio = _edificios[index];
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      backgroundColor: widget.screenBackgroundColor,
+      builder: (context) => AddEdificioSheet(
+        primaryColor: widget.primaryColor,
+        onSave: (updatedEdificio) async {
+          setState(() {
+            _edificios[index] = updatedEdificio;
+          });
+          await _saveEdificios();
+        },
+        edificio: edificio,
+        salones: _salones,
       ),
     );
   }
@@ -1236,6 +1303,7 @@ class HorarioScreenState extends State<HorarioScreen>
               ListTile(
                 title: Text('Horario: ${clase.horaInicio} - ${clase.horaFin}'),
               ),
+              const SizedBox(height: 20),
             ],
           ),
         ),

@@ -1887,11 +1887,13 @@ class _EditMateriaSheetState extends State<EditMateriaSheet> {
 class AddMaestroSheet extends StatefulWidget {
   final Color primaryColor;
   final void Function(Maestro) onSave;
+  final Maestro? maestro;
 
   const AddMaestroSheet({
     super.key,
     required this.primaryColor,
     required this.onSave,
+    this.maestro,
   });
 
   @override
@@ -1904,6 +1906,17 @@ class _AddMaestroSheetState extends State<AddMaestroSheet> {
   final _correoController = TextEditingController();
   final _telefonoController = TextEditingController();
   final _imagenUrlController = TextEditingController();
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.maestro != null) {
+      _nombreController.text = widget.maestro!.nombre;
+      _correoController.text = widget.maestro!.correo;
+      _telefonoController.text = widget.maestro!.telefono;
+      _imagenUrlController.text = widget.maestro!.imagenUrl ?? '';
+    }
+  }
 
   @override
   void dispose() {
@@ -1980,7 +1993,7 @@ class _AddMaestroSheetState extends State<AddMaestroSheet> {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(
-                  'Nuevo maestro',
+                  widget.maestro != null ? 'Editar maestro' : 'Nuevo maestro',
                   style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                     fontWeight: FontWeight.w800,
                     color: primaryColor,
@@ -2104,10 +2117,10 @@ class _AddMaestroSheetState extends State<AddMaestroSheet> {
             width: double.infinity,
             child: FilledButton.icon(
               onPressed: _save,
-              icon: const Icon(LucideIcons.userPlus, size: 20),
-              label: const Text(
-                'Agregar maestro',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+              icon: Icon(widget.maestro != null ? LucideIcons.check : LucideIcons.userPlus, size: 20),
+              label: Text(
+                widget.maestro != null ? 'Guardar cambios' : 'Agregar maestro',
+                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
               ),
               style: FilledButton.styleFrom(
                 padding: const EdgeInsets.symmetric(vertical: 22),
@@ -2406,11 +2419,15 @@ class _TimePickerModalState extends State<_TimePickerModal> {
 class AddSalonSheet extends StatefulWidget {
   final Color primaryColor;
   final void Function(Salon) onSave;
+  final Salon? salon;
+  final List<Edificio> edificios;
 
   const AddSalonSheet({
     super.key,
     required this.primaryColor,
     required this.onSave,
+    this.salon,
+    required this.edificios,
   });
 
   @override
@@ -2420,16 +2437,28 @@ class AddSalonSheet extends StatefulWidget {
 class _AddSalonSheetState extends State<AddSalonSheet> {
   final _formKey = GlobalKey<FormState>();
   final _nombreController = TextEditingController();
-  final _edificioController = TextEditingController();
+  String? _selectedEdificio;
   final _ubicacionController = TextEditingController();
   final _referenciasController = TextEditingController();
   final _capacidadController = TextEditingController(text: '40');
   final _imagenUrlController = TextEditingController();
 
   @override
+  void initState() {
+    super.initState();
+    if (widget.salon != null) {
+      _nombreController.text = widget.salon!.nombre;
+      _selectedEdificio = widget.salon!.edificio;
+      _ubicacionController.text = widget.salon!.ubicacion;
+      _referenciasController.text = widget.salon!.referencias ?? '';
+      _capacidadController.text = widget.salon!.capacidad.toString();
+      _imagenUrlController.text = widget.salon!.imagenUrl ?? '';
+    }
+  }
+
+  @override
   void dispose() {
     _nombreController.dispose();
-    _edificioController.dispose();
     _ubicacionController.dispose();
     _referenciasController.dispose();
     _capacidadController.dispose();
@@ -2439,11 +2468,17 @@ class _AddSalonSheetState extends State<AddSalonSheet> {
 
   void _save() {
     if (!(_formKey.currentState?.validate() ?? false)) return;
+    if (_selectedEdificio == null || _selectedEdificio!.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Selecciona un edificio')),
+      );
+      return;
+    }
 
     widget.onSave(
       Salon(
         nombre: _nombreController.text.trim(),
-        edificio: _edificioController.text.trim(),
+        edificio: _selectedEdificio!,
         ubicacion: _ubicacionController.text.trim(),
         referencias: _referenciasController.text.trim().isEmpty
             ? null
@@ -2507,7 +2542,7 @@ class _AddSalonSheetState extends State<AddSalonSheet> {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(
-                  'Nuevo salón',
+                  widget.salon != null ? 'Editar salón' : 'Nuevo salón',
                   style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                     fontWeight: FontWeight.w800,
                     color: primaryColor,
@@ -2582,16 +2617,26 @@ class _AddSalonSheetState extends State<AddSalonSheet> {
                                 : null,
                           ),
                           const SizedBox(height: 16),
-                          TextFormField(
-                            controller: _edificioController,
-                            textInputAction: TextInputAction.next,
+                          DropdownButtonFormField<String>(
+                            value: _selectedEdificio,
                             decoration: _fieldDecoration(
                               'Edificio',
                               LucideIcons.building2,
                             ),
+                            items: widget.edificios.map((edificio) {
+                              return DropdownMenuItem<String>(
+                                value: edificio.nombre,
+                                child: Text(edificio.nombre),
+                              );
+                            }).toList(),
+                            onChanged: (value) {
+                              setState(() {
+                                _selectedEdificio = value;
+                              });
+                            },
                             validator: (value) =>
-                                value == null || value.trim().isEmpty
-                                ? 'Escribe el edificio'
+                                value == null || value.isEmpty
+                                ? 'Selecciona un edificio'
                                 : null,
                           ),
                           const SizedBox(height: 16),
@@ -2652,10 +2697,10 @@ class _AddSalonSheetState extends State<AddSalonSheet> {
             width: double.infinity,
             child: FilledButton.icon(
               onPressed: _save,
-              icon: const Icon(LucideIcons.doorOpen, size: 20),
-              label: const Text(
-                'Agregar salón',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+              icon: Icon(widget.salon != null ? LucideIcons.check : LucideIcons.doorOpen, size: 20),
+              label: Text(
+                widget.salon != null ? 'Guardar cambios' : 'Agregar salón',
+                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
               ),
               style: FilledButton.styleFrom(
                 padding: const EdgeInsets.symmetric(vertical: 22),
@@ -2677,11 +2722,15 @@ class _AddSalonSheetState extends State<AddSalonSheet> {
 class AddEdificioSheet extends StatefulWidget {
   final Color primaryColor;
   final void Function(Edificio) onSave;
+  final Edificio? edificio;
+  final List<Salon> salones;
 
   const AddEdificioSheet({
     super.key,
     required this.primaryColor,
     required this.onSave,
+    this.edificio,
+    required this.salones,
   });
 
   @override
@@ -2692,14 +2741,24 @@ class _AddEdificioSheetState extends State<AddEdificioSheet> {
   final _formKey = GlobalKey<FormState>();
   final _nombreController = TextEditingController();
   final _descripcionController = TextEditingController();
-  final _salonesController = TextEditingController();
+  final Set<String> _selectedSalones = {};
   final _imagenUrlController = TextEditingController();
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.edificio != null) {
+      _nombreController.text = widget.edificio!.nombre;
+      _descripcionController.text = widget.edificio!.descripcion ?? '';
+      _selectedSalones.addAll(widget.edificio!.salones);
+      _imagenUrlController.text = widget.edificio!.imagenUrl ?? '';
+    }
+  }
 
   @override
   void dispose() {
     _nombreController.dispose();
     _descripcionController.dispose();
-    _salonesController.dispose();
     _imagenUrlController.dispose();
     super.dispose();
   }
@@ -2707,19 +2766,13 @@ class _AddEdificioSheetState extends State<AddEdificioSheet> {
   void _save() {
     if (!(_formKey.currentState?.validate() ?? false)) return;
 
-    final salonesList = _salonesController.text
-        .split(',')
-        .map((s) => s.trim())
-        .where((s) => s.isNotEmpty)
-        .toList();
-
     widget.onSave(
       Edificio(
         nombre: _nombreController.text.trim(),
         descripcion: _descripcionController.text.trim().isEmpty
             ? null
             : _descripcionController.text.trim(),
-        salones: salonesList,
+        salones: _selectedSalones.toList(),
         imagenUrl: _imagenUrlController.text.trim().isEmpty
             ? null
             : _imagenUrlController.text.trim(),
@@ -2778,7 +2831,7 @@ class _AddEdificioSheetState extends State<AddEdificioSheet> {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(
-                  'Nuevo edificio',
+                  widget.edificio != null ? 'Editar edificio' : 'Nuevo edificio',
                   style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                     fontWeight: FontWeight.w800,
                     color: primaryColor,
@@ -2863,18 +2916,44 @@ class _AddEdificioSheetState extends State<AddEdificioSheet> {
                             ),
                           ),
                           const SizedBox(height: 16),
-                          TextFormField(
-                            controller: _salonesController,
-                            textInputAction: TextInputAction.next,
-                            decoration: _fieldDecoration(
-                              'Salones (separados por coma)',
-                              LucideIcons.doorOpen,
+                          Text(
+                            'Salones',
+                            style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                              fontWeight: FontWeight.w600,
+                              color: primaryColor,
                             ),
-                            validator: (value) =>
-                                value == null || value.trim().isEmpty
-                                ? 'Escribe los salones'
-                                : null,
                           ),
+                          const SizedBox(height: 12),
+                          if (widget.salones.isEmpty)
+                            Text(
+                              'No hay salones disponibles. Primero agrega salones.',
+                              style: TextStyle(
+                                color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
+                              ),
+                            )
+                          else
+                            Wrap(
+                              spacing: 8,
+                              runSpacing: 8,
+                              children: widget.salones.map((salon) {
+                                final isSelected = _selectedSalones.contains(salon.nombre);
+                                return FilterChip(
+                                  label: Text(salon.nombre),
+                                  selected: isSelected,
+                                  onSelected: (selected) {
+                                    setState(() {
+                                      if (selected) {
+                                        _selectedSalones.add(salon.nombre);
+                                      } else {
+                                        _selectedSalones.remove(salon.nombre);
+                                      }
+                                    });
+                                  },
+                                  selectedColor: primaryColor.withValues(alpha: 0.2),
+                                  checkmarkColor: primaryColor,
+                                );
+                              }).toList(),
+                            ),
                           const SizedBox(height: 16),
                           TextFormField(
                             controller: _imagenUrlController,
@@ -2897,10 +2976,10 @@ class _AddEdificioSheetState extends State<AddEdificioSheet> {
             width: double.infinity,
             child: FilledButton.icon(
               onPressed: _save,
-              icon: const Icon(LucideIcons.building2, size: 20),
-              label: const Text(
-                'Agregar edificio',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+              icon: Icon(widget.edificio != null ? LucideIcons.check : LucideIcons.building2, size: 20),
+              label: Text(
+                widget.edificio != null ? 'Guardar cambios' : 'Agregar edificio',
+                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
               ),
               style: FilledButton.styleFrom(
                 padding: const EdgeInsets.symmetric(vertical: 22),

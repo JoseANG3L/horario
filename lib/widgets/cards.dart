@@ -205,6 +205,16 @@ class ClaseCard extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: 6),
+                  InkWell(
+                    onTap: onTeacherTap,
+                    borderRadius: BorderRadius.circular(12),
+                    child: InfoChip(
+                      icon: LucideIcons.user,
+                      label: profesor,
+                      color: cardTextColor,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
                   Wrap(
                     spacing: 4,
                     runSpacing: 4,
@@ -215,15 +225,6 @@ class ClaseCard extends StatelessWidget {
                         child: InfoChip(
                           icon: LucideIcons.mapPin,
                           label: aula,
-                          color: cardTextColor,
-                        ),
-                      ),
-                      InkWell(
-                        onTap: onTeacherTap,
-                        borderRadius: BorderRadius.circular(12),
-                        child: InfoChip(
-                          icon: LucideIcons.user,
-                          label: profesor,
                           color: cardTextColor,
                         ),
                       ),

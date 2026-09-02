@@ -1073,6 +1073,7 @@ class MaestrosTab extends StatefulWidget {
   final List<Maestro> maestros;
   final Function(Maestro) onAddMaestro;
   final Function(int) onDeleteMaestro;
+  final Function(int) onEditMaestro;
   final Color primaryColor;
 
   const MaestrosTab({
@@ -1080,6 +1081,7 @@ class MaestrosTab extends StatefulWidget {
     required this.maestros,
     required this.onAddMaestro,
     required this.onDeleteMaestro,
+    required this.onEditMaestro,
     required this.primaryColor,
   });
 
@@ -1125,22 +1127,11 @@ class _MaestrosTabState extends State<MaestrosTab> {
         final maestro = widget.maestros[index];
         return MaestroCard(
           maestro: maestro,
-          onEdit: () => _showMaestroDetail(maestro),
+          onEdit: () => widget.onEditMaestro(index),
           onDelete: () => widget.onDeleteMaestro(index),
           primaryColor: widget.primaryColor,
         );
       },
-    );
-  }
-
-  void _showMaestroDetail(Maestro maestro) {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.transparent,
-      builder: (context) => MaestroDetailSheet(
-        maestro: maestro,
-        primaryColor: widget.primaryColor,
-      ),
     );
   }
 }
@@ -1360,7 +1351,7 @@ class MaestroDetailSheet extends StatelessWidget {
               ],
             ),
           ),
-          const SizedBox(height: 20),
+          const SizedBox(height: 40),
         ],
       ),
     );
@@ -1411,6 +1402,7 @@ class SalonesTab extends StatefulWidget {
   final List<Salon> salones;
   final Function(Salon) onAddSalon;
   final Function(int) onDeleteSalon;
+  final Function(int) onEditSalon;
   final Color primaryColor;
 
   const SalonesTab({
@@ -1418,6 +1410,7 @@ class SalonesTab extends StatefulWidget {
     required this.salones,
     required this.onAddSalon,
     required this.onDeleteSalon,
+    required this.onEditSalon,
     required this.primaryColor,
   });
 
@@ -1469,24 +1462,11 @@ class _SalonesTabState extends State<SalonesTab> {
           child: SalonCard(
             salon: salon,
             primaryColor: widget.primaryColor,
-            onEdit: () => _showSalonDetail(salon),
+            onEdit: () => widget.onEditSalon(index),
             onDelete: () => widget.onDeleteSalon(index),
           ),
         );
       },
-    );
-  }
-
-  void _showSalonDetail(Salon salon) {
-    showModalBottomSheet<void>(
-      context: context,
-      isScrollControlled: true,
-      useSafeArea: true,
-      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-      builder: (context) => SalonDetailSheet(
-        salon: salon,
-        primaryColor: widget.primaryColor,
-      ),
     );
   }
 }
@@ -1701,10 +1681,11 @@ class SalonDetailSheet extends StatelessWidget {
                     primaryColor: primaryColor,
                   ),
                 ],
-                const SizedBox(height: 20),
+                const SizedBox(height: 40),
               ],
             ),
           ),
+          const SizedBox(height: 40),
         ],
       ),
     );
@@ -1719,6 +1700,7 @@ class EdificiosTab extends StatefulWidget {
   final List<Edificio> edificios;
   final Function(Edificio) onAddEdificio;
   final Function(int) onDeleteEdificio;
+  final Function(int) onEditEdificio;
   final Color primaryColor;
 
   const EdificiosTab({
@@ -1726,6 +1708,7 @@ class EdificiosTab extends StatefulWidget {
     required this.edificios,
     required this.onAddEdificio,
     required this.onDeleteEdificio,
+    required this.onEditEdificio,
     required this.primaryColor,
   });
 
@@ -1777,24 +1760,11 @@ class _EdificiosTabState extends State<EdificiosTab> {
           child: EdificioCard(
             edificio: edificio,
             primaryColor: widget.primaryColor,
-            onEdit: () => _showEdificioDetail(edificio),
+            onEdit: () => widget.onEditEdificio(index),
             onDelete: () => widget.onDeleteEdificio(index),
           ),
         );
       },
-    );
-  }
-
-  void _showEdificioDetail(Edificio edificio) {
-    showModalBottomSheet<void>(
-      context: context,
-      isScrollControlled: true,
-      useSafeArea: true,
-      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-      builder: (context) => EdificioDetailSheet(
-        edificio: edificio,
-        primaryColor: widget.primaryColor,
-      ),
     );
   }
 }
@@ -2034,6 +2004,7 @@ class EdificioDetailSheet extends StatelessWidget {
             ],
           ),
         ),
+        const SizedBox(height: 40),
       ],
     );
   }
